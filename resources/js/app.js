@@ -19,10 +19,13 @@ window.Vue = require('vue');
 // const files = require.context('./', true, /\.vue$/i)
 // files.keys().map(key => Vue.component(key.split('/').pop().split('.')[0], files(key).default))
 
-Vue.component('enquete-component', require('./components/EnqueteComponent.vue').default);
 import Vue from 'vue'
 import Vuelidate from 'vuelidate'
+import Notifications from 'vue-notification'
+Vue.component('enquete-component', require('./components/EnqueteComponent.vue').default);
+Vue.component('listar-enquete-component', require('./components/ListarEnquetesComponent.vue').default);
 Vue.use(Vuelidate)
+Vue.use(Notifications)
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application

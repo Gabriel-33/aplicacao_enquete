@@ -74,7 +74,8 @@
             <a href="#about">About</a>
         </div>
         <div class="content">
-            <enquete-component v-show="opc == 'cadastrar_enquete'"></enquete-component>
+            <enquete-component v-show="opc == 'cadastrar_enquete'" style="margin-top: 150px;"></enquete-component>
+            <listar-enquete-component v-show="opc == 'visualizar_enquetes'" style="margin-top: 100px;"></listar-enquete-component>
         </div>
     </div>
 </body>

@@ -86,6 +86,85 @@
 /************************************************************************/
 /******/ ({
 
+/***/ "./node_modules/after/index.js":
+/*!*************************************!*\
+  !*** ./node_modules/after/index.js ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = after
+
+function after(count, callback, err_cb) {
+    var bail = false
+    err_cb = err_cb || noop
+    proxy.count = count
+
+    return (count === 0) ? callback() : proxy
+
+    function proxy(err, result) {
+        if (proxy.count <= 0) {
+            throw new Error('after called too many times')
+        }
+        --proxy.count
+
+        // after first error, rest are passed to err_cb
+        if (err) {
+            bail = true
+            callback(err)
+            // future error callbacks will go to error handler
+            callback = err_cb
+        } else if (proxy.count === 0 && !bail) {
+            callback(null, result)
+        }
+    }
+}
+
+function noop() {}
+
+
+/***/ }),
+
+/***/ "./node_modules/arraybuffer.slice/index.js":
+/*!*************************************************!*\
+  !*** ./node_modules/arraybuffer.slice/index.js ***!
+  \*************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * An abstraction for slicing an arraybuffer even when
+ * ArrayBuffer.prototype.slice is not supported
+ *
+ * @api public
+ */
+
+module.exports = function(arraybuffer, start, end) {
+  var bytes = arraybuffer.byteLength;
+  start = start || 0;
+  end = end || bytes;
+
+  if (arraybuffer.slice) { return arraybuffer.slice(start, end); }
+
+  if (start < 0) { start += bytes; }
+  if (end < 0) { end += bytes; }
+  if (end > bytes) { end = bytes; }
+
+  if (start >= bytes || start >= end || bytes === 0) {
+    return new ArrayBuffer(0);
+  }
+
+  var abv = new Uint8Array(arraybuffer);
+  var result = new Uint8Array(end - start);
+  for (var i = start, ii = 0; i < end; i++, ii++) {
+    result[ii] = abv[i];
+  }
+  return result.buffer;
+};
+
+
+/***/ }),
+
 /***/ "./node_modules/axios/index.js":
 /*!*************************************!*\
   !*** ./node_modules/axios/index.js ***!
@@ -1910,6 +1989,9 @@ module.exports = {
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vuelidate/lib/validators */ "./node_modules/vuelidate/lib/validators/index.js");
 /* harmony import */ var vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var socket_io_client__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! socket.io-client */ "./node_modules/socket.io-client/lib/index.js");
+/* harmony import */ var socket_io_client__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(socket_io_client__WEBPACK_IMPORTED_MODULE_1__);
+
 
 /* harmony default export */ __webpack_exports__["default"] = ({
   name: "CadastrarEnquete",
@@ -1918,6 +2000,16 @@ __webpack_require__.r(__webpack_exports__);
   },
   data: function data() {
     return {
+      socket: socket_io_client__WEBPACK_IMPORTED_MODULE_1___default()("localhost:5000", {
+        withCredentials: false,
+        transportOptions: {
+          polling: {
+            extraHeaders: {
+              "my-custom-header": "abcd"
+            }
+          }
+        }
+      }),
       quantidade_questoes: 0,
       resposta: '',
       titulo_enquete: '',
@@ -1926,17 +2018,9 @@ __webpack_require__.r(__webpack_exports__);
       horario_inicial: '',
       horario_final: '',
       enviado: false,
-      campo_texto: [{
+      campo: [{
         valor: "",
         tipo: 1
-      }],
-      campo_radio: [{
-        valor: "",
-        tipo: 2
-      }],
-      campo_numerico: [{
-        valor: "",
-        tipo: 3
       }]
     };
   },
@@ -1961,36 +2045,16 @@ __webpack_require__.r(__webpack_exports__);
     adicionar_campo: function adicionar_campo(tipo) {
       if (this.quantidade_questoes < 5) {
         this.quantidade_questoes += 1;
-
-        if (tipo == 1) {
-          this.campo_texto.push({
-            valor: "",
-            tipo: 1
-          });
-        } else if (tipo == 2) {
-          this.campo_radio.push({
-            valor: "",
-            tipo: 2
-          });
-        } else {
-          this.campo_numerico.push({
-            valor: "",
-            tipo: 3
-          });
-        }
+        this.campo.push({
+          valor: "",
+          tipo: tipo
+        });
       } else {
         alert("A enquete aceita a inserção de até 5 campos!");
       }
     },
-    remover_campo: function remover_campo(index_campo, tipo) {
-      if (tipo == 1) {
-        this.campo_texto.splice(index_campo, 1);
-      } else if (tipo == 2) {
-        this.campo_radio.splice(index_campo, 1);
-      } else {
-        this.campo_numerico.splice(index_campo, 1);
-      }
-
+    remover_campo: function remover_campo(index_campo) {
+      this.campo.splice(index_campo, 1);
       this.quantidade_questoes -= 1;
     },
     salvar_enquete: function salvar_enquete() {
@@ -2007,28 +2071,259 @@ __webpack_require__.r(__webpack_exports__);
           'data_final': this.data_final,
           'horario_inicial': this.horario_inicial,
           'horario_final': this.horario_final,
-          'campo_texto': this.campo_texto,
-          'campo_radio': this.campo_radio,
-          'campo_numerico': this.campo_numerico
+          'campo': this.campo
         }).then(function (response) {
           _this.resposta = response.data;
           console.log(_this.resposta);
-        }
-        /*this.campo_texto.splice(1),
-        this.campo_radio.splice(1),
-        this.campo_numerico.splice(1),
-        this.titulo_enquete = null,
-        this.data_inicial = null,
-        this.data_final = null,
-        this.horario_inicial = null,
-        this.horario_final = null,*/
-        )["catch"](function (error) {
+
+          _this.$emit('enquete_cadastrada');
+        })["catch"](function (error) {
           console.log(error.message);
         });
       } else {
         console.log(this.$v);
       }
     }
+  },
+  created: function created() {
+    var _this2 = this;
+
+    this.$on('enquete_cadastrada', function () {
+      _this2.campo.splice(1), _this2.campo.splice(1), _this2.campo.splice(1), _this2.titulo_enquete = null, _this2.data_inicial = null, _this2.data_final = null, _this2.horario_inicial = null, _this2.horario_final = null, _this2.enviado = false, _this2.quantidade_questoes = 0, _this2.$notify({
+        group: 'foo',
+        type: 'success',
+        text: '<center><h6>' + _this2.resposta + '</h6></center>'
+      });
+    });
+  }
+});
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js&":
+/*!**********************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib??ref--4-0!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js& ***!
+  \**********************************************************************************************************************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var vue_bootstrap4_table__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue-bootstrap4-table */ "./node_modules/vue-bootstrap4-table/dist/vue-bootstrap4-table.esm.js");
+/* harmony import */ var vuelidate__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vuelidate */ "./node_modules/vuelidate/lib/index.js");
+/* harmony import */ var vuelidate__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(vuelidate__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vuelidate/lib/validators */ "./node_modules/vuelidate/lib/validators/index.js");
+/* harmony import */ var vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var socket_io_client__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! socket.io-client */ "./node_modules/socket.io-client/lib/index.js");
+/* harmony import */ var socket_io_client__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(socket_io_client__WEBPACK_IMPORTED_MODULE_3__);
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+
+
+Vue.use(vuelidate__WEBPACK_IMPORTED_MODULE_1___default.a);
+
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  name: 'ListarEnquetes',
+  components: {
+    VueBootstrap4Table: vue_bootstrap4_table__WEBPACK_IMPORTED_MODULE_0__["default"]
+  },
+  data: function data() {
+    return {
+      dados: [],
+      id_user: '',
+      tipo_user: '',
+      status_user: '',
+      nome_user: true,
+      email_user: true,
+      texto: '',
+      type: '',
+      socket: socket_io_client__WEBPACK_IMPORTED_MODULE_3___default()("localhost:5000", {
+        withCredentials: false,
+        transportOptions: {
+          polling: {
+            extraHeaders: {
+              "my-custom-header": "abcd"
+            }
+          }
+        }
+      }),
+      columns: [{
+        label: "id enquete",
+        name: "id_user",
+        filter: {
+          type: "simple",
+          placeholder: "id"
+        },
+        sort: true
+      }, {
+        label: "Titulo enquete",
+        name: "nome_user",
+        filter: {
+          type: "simple",
+          placeholder: "Nome"
+        },
+        sort: true
+      }, _defineProperty({
+        label: "Data inicial",
+        name: "tipo_user",
+        sort: true,
+        filter: {
+          type: "simple",
+          placeholder: "Tipo de usuário"
+        }
+      }, "sort", true), _defineProperty({
+        label: "Data final",
+        name: "status_user",
+        sort: true,
+        filter: {
+          type: "simple",
+          placeholder: "Status de usuário"
+        }
+      }, "sort", true), _defineProperty({
+        label: "Horário inicial",
+        name: "email_user",
+        sort: true,
+        filter: {
+          type: "simple",
+          placeholder: "Status de usuário"
+        }
+      }, "sort", true), _defineProperty({
+        label: "Horário final",
+        name: "email_user",
+        sort: true,
+        filter: {
+          type: "simple",
+          placeholder: "Status de usuário"
+        }
+      }, "sort", true), {
+        label: "Editar",
+        name: "editar",
+        sort: true,
+        actions: "actions"
+      }, {
+        label: "Excluir",
+        name: "excluir",
+        sort: true,
+        actions: "actions"
+      }],
+      config: {
+        per_page_options: [5, 10, 15, 20],
+        show_refresh_button: false,
+        show_reset_button: false,
+        checkbox_rows: false,
+        rows_selectable: true,
+        card_title: "Enquetes",
+        aligncard_title: 'center',
+        global_search: {
+          placeholder: "Pesquisar...",
+          visibility: true,
+          case_sensitive: false,
+          showClearButton: false,
+          searchOnPressEnter: false,
+          searchDebounceRate: 0
+        }
+      }
+    };
+  },
+  validations: {
+    nome_user: {
+      required: vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__["required"],
+      minLength: Object(vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__["minLength"])(1),
+      maxLength: Object(vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__["maxLength"])(45),
+      $each: true
+    },
+    email_user: {
+      required: vuelidate_lib_validators__WEBPACK_IMPORTED_MODULE_2__["required"],
+      $each: true
+    }
+  },
+  methods: {
+    onDownload: function onDownload(payload) {
+      console.log(payload);
+    },
+    excluir_user: function excluir_user(e) {
+      var _this = this;
+
+      axios.get('/excluirUser/' + e.row.id_user).then(function (resposta) {
+        _this.texto = resposta.data;
+
+        _this.socket.emit('atualizar');
+
+        Event.$emit('excluido');
+      });
+    },
+    modal_editar_user: function modal_editar_user(e) {
+      this.$bvModal.show('' + e.row.id_user);
+    },
+    listar_users: function listar_users() {
+      var _this2 = this;
+
+      axios.post('/listarUsers').then(function (resposta) {
+        return _this2.dados = resposta.data;
+      });
+    },
+    salvar_edicao: function salvar_edicao(e) {
+      var _this3 = this;
+
+      event.preventDefault();
+      this.nome_user = e.row.nome_user;
+      this.$v.nome_user.$touch();
+      this.email_user = e.row.email_user;
+      this.$v.email_user.$touch();
+
+      if (this.$v.$anyError == false) {
+        axios.post('/editarUser', {
+          'nome_user': e.row.nome_user,
+          'email_user': e.row.email_user,
+          'tipo_user': e.row.tipo_user,
+          'status_user': e.row.status_user,
+          'id_user': e.row.id_user
+        }).then(function (resposta) {
+          _this3.texto = resposta.data;
+
+          _this3.socket.emit('atualizar');
+
+          Event.$emit('editado');
+        });
+        this.$bvModal.hide('' + e.row.id_user);
+      }
+    }
+  },
+  created: function created() {
+    var _this4 = this;
+
+    this.socket.on('atualizar', function () {
+      axios.post('/listarUsers').then(function (resposta) {
+        _this4.dados = resposta.data;
+      });
+    });
+    this.$on('excluido', function () {
+      axios.post('/listarUsers').then(function (resposta) {
+        return _this4.dados = resposta.data;
+      });
+
+      _this4.$notify({
+        group: 'foo2',
+        type: 'error',
+        text: '<center>' + _this4.texto + '</center>'
+      });
+    });
+    this.$on('UserCadastrado', function () {
+      axios.post('/listarUsers').then(function (resposta) {
+        return _this4.dados = resposta.data;
+      });
+    });
+    this.$on('editado', function () {
+      _this4.$notify({
+        group: 'foo',
+        type: 'success',
+        text: '<center>' + _this4.texto + '</center>'
+      });
+    });
+  },
+  mounted: function mounted() {
+    this.listar_users();
   }
 });
 
@@ -2052,11 +2347,17 @@ var render = function render() {
       _c = _vm._self._c;
 
   return _c("div", {
-    staticClass: "card col-md-7 mx-auto",
+    staticClass: "card col-md-7 mx-auto"
+  }, [_c("notifications", {
     staticStyle: {
-      "margin-top": "150px"
+      "margin-top": "15px"
+    },
+    attrs: {
+      group: "foo",
+      position: "top center",
+      width: "500px"
     }
-  }, [_c("div", {
+  }), _vm._v(" "), _c("div", {
     staticClass: "card-body"
   }, [_c("div", {
     staticClass: "row"
@@ -2067,7 +2368,7 @@ var render = function render() {
     attrs: {
       "for": "formGroupExampleInput"
     }
-  }, [_vm._v("Titulo enquet:")]), _vm._v(" "), _c("input", {
+  }, [_vm._v("Titulo enquete:")]), _vm._v(" "), _c("input", {
     directives: [{
       name: "model",
       rawName: "v-model:value",
@@ -2106,7 +2407,7 @@ var render = function render() {
       }
     }
   }), _vm._v(" "), !_vm.$v.titulo_enquete.required && this.enviado === true ? _c("div", {
-    staticClass: "alert alert-warning mb-1",
+    staticClass: "text-danger mb-1",
     staticStyle: {
       "margin-top": "10px"
     }
@@ -2156,7 +2457,7 @@ var render = function render() {
       }
     }
   }), _vm._v(" "), !_vm.$v.data_inicial.required && this.enviado === true ? _c("div", {
-    staticClass: "alert alert-warning mb-1",
+    staticClass: "text-danger mb-1",
     staticStyle: {
       "margin-top": "10px"
     }
@@ -2206,7 +2507,7 @@ var render = function render() {
       }
     }
   }), _vm._v(" "), !_vm.$v.data_final.required && this.enviado === true ? _c("div", {
-    staticClass: "alert alert-warning mb-1",
+    staticClass: "text-danger mb-1",
     staticStyle: {
       "margin-top": "10px"
     }
@@ -2256,7 +2557,7 @@ var render = function render() {
       }
     }
   }), _vm._v(" "), !_vm.$v.horario_inicial.required && this.enviado === true ? _c("div", {
-    staticClass: "alert alert-warning mb-1",
+    staticClass: "text-danger mb-1",
     staticStyle: {
       "margin-top": "10px"
     }
@@ -2306,11 +2607,11 @@ var render = function render() {
       }
     }
   }), _vm._v(" "), !_vm.$v.horario_final.required && this.enviado === true ? _c("div", {
-    staticClass: "alert alert-warning mb-1",
+    staticClass: "text-danger mb-1",
     staticStyle: {
       "margin-top": "10px"
     }
-  }, [_c("strong", [_vm._v("*Campo obrigatório")])]) : _vm._e()]), _vm._v(" "), _vm._l(_vm.campo_texto, function (campo, index) {
+  }, [_c("strong", [_vm._v("*Campo obrigatório")])]) : _vm._e()]), _vm._v(" "), _vm._l(_vm.campo, function (campo, index) {
     return _c("div", {
       directives: [{
         name: "show",
@@ -2319,7 +2620,7 @@ var render = function render() {
         expression: "index !=0"
       }],
       key: index
-    }, [_c("div", {
+    }, [campo.tipo == 1 ? _c("div", {
       staticClass: "row mb-4"
     }, [_c("div", {
       staticClass: "col-10"
@@ -2361,23 +2662,13 @@ var render = function render() {
       },
       on: {
         click: function click($event) {
-          return _vm.remover_campo(index, 1);
+          return _vm.remover_campo(index);
         }
       }
-    }, [_vm._v("\n                    Remover\n                  ")])]), _vm._v(" "), _vm._m(0, true)])]);
-  }), _vm._v(" "), _vm._l(_vm.campo_radio, function (campo, index) {
-    return _c("div", {
-      directives: [{
-        name: "show",
-        rawName: "v-show",
-        value: index != 0,
-        expression: "index !=0"
-      }],
-      key: "A" + index
-    }, [_c("div", {
+    }, [_vm._v("\n                    Remover\n                  ")])]), _vm._v(" "), _vm._m(0, true)]) : _vm._e(), _vm._v(" "), campo.tipo == 2 ? _c("div", {
       staticClass: "row mb-4"
     }, [_c("div", {
-      staticClass: "col-10 mb-3"
+      staticClass: "col-10"
     }, [_c("input", {
       directives: [{
         name: "model",
@@ -2416,7 +2707,7 @@ var render = function render() {
       },
       on: {
         click: function click($event) {
-          return _vm.remover_campo("A" + index, 2);
+          return _vm.remover_campo(index);
         }
       }
     }, [_vm._v("\n                    Remover\n                  ")])]), _vm._v(" "), _c("div", {
@@ -2427,8 +2718,8 @@ var render = function render() {
       directives: [{
         name: "model",
         rawName: "v-model",
-        value: _vm.campo_radio.valor,
-        expression: "campo_radio.valor"
+        value: campo.valor,
+        expression: "campo.valor"
       }],
       staticClass: "form-check-input",
       attrs: {
@@ -2438,11 +2729,11 @@ var render = function render() {
         disabled: ""
       },
       domProps: {
-        checked: _vm._q(_vm.campo_radio.valor, null)
+        checked: _vm._q(campo.valor, null)
       },
       on: {
         change: function change($event) {
-          return _vm.$set(_vm.campo_radio, "valor", null);
+          return _vm.$set(campo, "valor", null);
         }
       }
     }), _vm._v(" "), _c("label", {
@@ -2456,8 +2747,8 @@ var render = function render() {
       directives: [{
         name: "model",
         rawName: "v-model",
-        value: _vm.campo_radio.valor,
-        expression: "campo_radio.valor"
+        value: campo.valor,
+        expression: "campo.valor"
       }],
       staticClass: "form-check-input",
       attrs: {
@@ -2468,11 +2759,11 @@ var render = function render() {
         disabled: ""
       },
       domProps: {
-        checked: _vm._q(_vm.campo_radio.valor, null)
+        checked: _vm._q(campo.valor, null)
       },
       on: {
         change: function change($event) {
-          return _vm.$set(_vm.campo_radio, "valor", null);
+          return _vm.$set(campo, "valor", null);
         }
       }
     }), _vm._v(" "), _c("label", {
@@ -2480,27 +2771,16 @@ var render = function render() {
       attrs: {
         "for": "flexRadioDefault2"
       }
-    }, [_vm._v("\n                        Não\n                    ")])])])])]);
-  }), _vm._v(" "), _vm._l(_vm.campo_numerico, function (campo, index) {
-    return _c("div", {
-      directives: [{
-        name: "show",
-        rawName: "v-show",
-        value: index != 0,
-        expression: "index !=0"
-      }],
-      key: "B" + index
-    }, [_c("div", {
+    }, [_vm._v("\n                        Não\n                    ")])])])]) : _vm._e(), _vm._v(" "), campo.tipo == 3 ? _c("div", {
       staticClass: "row mb-4"
     }, [_c("div", {
       staticClass: "col-10"
     }, [_c("input", {
       directives: [{
         name: "model",
-        rawName: "v-model:value",
+        rawName: "v-model",
         value: campo.valor,
-        expression: "campo.valor",
-        arg: "value"
+        expression: "campo.valor"
       }],
       staticClass: "form-control",
       attrs: {
@@ -2532,36 +2812,11 @@ var render = function render() {
       },
       on: {
         click: function click($event) {
-          return _vm.remover_campo("B" + index, 3);
+          return _vm.remover_campo(index);
         }
       }
-    }, [_vm._v("\n                    Remover\n                  ")])]), _vm._v(" "), _c("div", {
-      staticClass: "col-12 md-3 mt-3"
-    }, [_c("input", {
-      directives: [{
-        name: "model",
-        rawName: "v-model",
-        value: _vm.campo_numerico.valor,
-        expression: "campo_numerico.valor"
-      }],
-      staticClass: "form-control",
-      attrs: {
-        type: "number",
-        placeholder: "Resposta em valor númerico",
-        disabled: ""
-      },
-      domProps: {
-        value: _vm.campo_numerico.valor
-      },
-      on: {
-        input: function input($event) {
-          if ($event.target.composing) return;
-
-          _vm.$set(_vm.campo_numerico, "valor", $event.target.value);
-        }
-      }
-    })])])]);
-  }), _vm._v(" "), _c("div", {
+    }, [_vm._v("\n                    Remover\n                  ")])]), _vm._v(" "), _vm._m(1, true)]) : _vm._e()]);
+  })], 2), _vm._v(" "), _c("div", {
     staticClass: "row mx-auto"
   }, [_c("div", {
     staticClass: "col mb-3"
@@ -2614,7 +2869,7 @@ var render = function render() {
         return _vm.salvar_enquete();
       }
     }
-  }, [_vm._v("Salvar enquete")])])], 2)])]);
+  }, [_vm._v("Salvar enquete")])])])], 1);
 };
 
 var staticRenderFns = [function () {
@@ -2624,8 +2879,743 @@ var staticRenderFns = [function () {
   return _c("div", {
     staticClass: "col-12 md-3 mt-3"
   }, [_c("label", [_vm._v("Resposta:")]), _vm._v(" "), _c("hr")]);
+}, function () {
+  var _vm = this,
+      _c = _vm._self._c;
+
+  return _c("div", {
+    staticClass: "col-12 md-3 mt-3"
+  }, [_c("input", {
+    staticClass: "form-control",
+    attrs: {
+      type: "number",
+      placeholder: "Resposta em valor númerico",
+      disabled: ""
+    }
+  })]);
 }];
 render._withStripped = true;
+
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449&":
+/*!********************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib??ref--4-0!./node_modules/vue-loader/lib/loaders/templateLoader.js??ref--6!./node_modules/vue-loader/lib??vue-loader-options!./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449& ***!
+  \********************************************************************************************************************************************************************************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "render", function() { return render; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return staticRenderFns; });
+var render = function render() {
+  var _vm = this,
+      _c = _vm._self._c;
+
+  return _c("vue-bootstrap4-table", {
+    staticClass: "table table-bordered",
+    attrs: {
+      rows: _vm.dados,
+      columns: _vm.columns,
+      config: _vm.config,
+      actions: _vm.actions
+    },
+    on: {
+      "on-download": _vm.onDownload
+    },
+    scopedSlots: _vm._u([{
+      key: "pagination-info",
+      fn: function fn(props) {
+        return [_vm._v("\n            Total de enquetes: " + _vm._s(props.currentPageRowsLength) + "\n        ")];
+      }
+    }, {
+      key: "editar",
+      fn: function fn(dados) {
+        return [_c("i", [_c("b-button", {
+          attrs: {
+            variant: "primary"
+          },
+          on: {
+            click: function click($event) {
+              return _vm.modal_editar_user(dados);
+            }
+          }
+        }, [_c("i", {
+          staticClass: "fas fa-pen-square"
+        })]), _vm._v(" "), _c("notifications", {
+          attrs: {
+            group: "foo",
+            id: String(dados.row.id_user),
+            position: "top center",
+            width: "500px"
+          }
+        }), _vm._v(" "), _c("b-modal", {
+          attrs: {
+            id: String(dados.row.id_user),
+            "hide-footer": ""
+          }
+        }, [_c("div", {
+          staticClass: "modal-title w-100 font-weight-bold",
+          attrs: {
+            slot: "modal-title"
+          },
+          slot: "modal-title"
+        }, [_c("h5", [_vm._v("Editar usuário")])]), _vm._v(" "), _c("form", {
+          on: {
+            submit: function submit($event) {
+              return _vm.salvar_edicao(dados);
+            }
+          }
+        }, [_c("div", {
+          staticClass: "form-group"
+        }, [_c("input", {
+          staticClass: "form-control",
+          attrs: {
+            type: "hidden"
+          },
+          domProps: {
+            value: dados.row.id_user
+          }
+        })]), _vm._v(" "), _c("div", {
+          staticClass: "form-group"
+        }, [_c("label", [_vm._v("Nome:")]), _vm._v(" "), _c("input", {
+          directives: [{
+            name: "model",
+            rawName: "v-model",
+            value: dados.row.nome_user,
+            expression: "dados.row.nome_user"
+          }],
+          staticClass: "form-control",
+          attrs: {
+            type: "text",
+            maxlength: "45"
+          },
+          domProps: {
+            value: dados.row.nome_user
+          },
+          on: {
+            input: function input($event) {
+              if ($event.target.composing) return;
+
+              _vm.$set(dados.row, "nome_user", $event.target.value);
+            }
+          }
+        }), _vm._v(" "), !_vm.$v.nome_user.required ? _c("div", {
+          staticClass: "error text text-danger"
+        }, [_c("ul", {
+          staticClass: "col-md-12"
+        }, [_c("li", {
+          staticClass: "text-danger"
+        }, [_vm._v("  \n                                    Campo obrigatório\n                                  ")])])]) : _vm._e(), _vm._v(" "), !_vm.$v.nome_user.maxLength ? _c("div", {
+          staticClass: "error"
+        }, [_c("div", {
+          staticClass: "error text text-danger"
+        }, [_c("ul", {
+          staticClass: "col-md-12"
+        }, [_c("li", {
+          staticClass: "text-danger"
+        }, [_vm._v("  \n                                    Este campo deve ter no máximo " + _vm._s(_vm.$v.nome_user.$params.maxLength.max) + " caracteres.\n                                  ")])])])]) : _vm._e()]), _vm._v(" "), _c("div", {
+          staticClass: "form-group"
+        }, [_c("label", [_vm._v("Email:")]), _vm._v(" "), _c("input", {
+          directives: [{
+            name: "model",
+            rawName: "v-model",
+            value: dados.row.email_user,
+            expression: "dados.row.email_user"
+          }],
+          staticClass: "form-control",
+          attrs: {
+            type: "email",
+            maxlength: "60"
+          },
+          domProps: {
+            value: dados.row.email_user
+          },
+          on: {
+            input: function input($event) {
+              if ($event.target.composing) return;
+
+              _vm.$set(dados.row, "email_user", $event.target.value);
+            }
+          }
+        }), _vm._v(" "), !_vm.$v.email_user.required ? _c("div", {
+          staticClass: "error text text-danger"
+        }, [_c("ul", {
+          staticClass: "col-md-12"
+        }, [_c("li", {
+          staticClass: "text-danger"
+        }, [_vm._v("  \n                                    Campo obrigatório\n                                  ")])])]) : _vm._e()]), _vm._v(" "), _c("div", {
+          staticClass: "form-group"
+        }, [_c("label", [_vm._v("Nivel:")]), _vm._v(" "), _c("i", {
+          staticClass: "col-md-2",
+          attrs: {
+            "data-title": "1 = usuário estudante; 2 = usuário organizador; 3 = usuário root"
+          }
+        }, [_c("span", {
+          staticClass: "fa fa-info"
+        })]), _vm._v(" "), _c("div", [_c("select", {
+          directives: [{
+            name: "model",
+            rawName: "v-model",
+            value: dados.row.tipo_user,
+            expression: "dados.row.tipo_user"
+          }],
+          staticClass: "select-form form-control",
+          on: {
+            change: function change($event) {
+              var $$selectedVal = Array.prototype.filter.call($event.target.options, function (o) {
+                return o.selected;
+              }).map(function (o) {
+                var val = "_value" in o ? o._value : o.value;
+                return val;
+              });
+
+              _vm.$set(dados.row, "tipo_user", $event.target.multiple ? $$selectedVal : $$selectedVal[0]);
+            }
+          }
+        }, [_c("option", {
+          attrs: {
+            selected: "",
+            disabled: "",
+            value: ""
+          }
+        }, [_vm._v("Selecione uma opção")]), _vm._v(" "), _c("option", {
+          attrs: {
+            value: "1"
+          }
+        }, [_vm._v("1")]), _vm._v(" "), _c("option", {
+          attrs: {
+            value: "2"
+          }
+        }, [_vm._v("2")]), _vm._v(" "), _c("option", {
+          attrs: {
+            value: "3"
+          }
+        }, [_vm._v("3")])])])]), _vm._v(" "), _c("div", {
+          staticClass: "form-group"
+        }, [_c("label", [_vm._v("Status:")]), _vm._v(" "), _c("i", {
+          staticClass: "col-md-2",
+          attrs: {
+            "data-title": "1 = usuário ativo; 2 = usuário inativo"
+          }
+        }, [_c("span", {
+          staticClass: "fa fa-info"
+        })]), _vm._v(" "), _c("div", [_c("select", {
+          directives: [{
+            name: "model",
+            rawName: "v-model",
+            value: dados.row.status_user,
+            expression: "dados.row.status_user"
+          }],
+          staticClass: "select-form form-control",
+          on: {
+            change: function change($event) {
+              var $$selectedVal = Array.prototype.filter.call($event.target.options, function (o) {
+                return o.selected;
+              }).map(function (o) {
+                var val = "_value" in o ? o._value : o.value;
+                return val;
+              });
+
+              _vm.$set(dados.row, "status_user", $event.target.multiple ? $$selectedVal : $$selectedVal[0]);
+            }
+          }
+        }, [_c("option", {
+          attrs: {
+            selected: "",
+            disabled: "",
+            value: ""
+          }
+        }, [_vm._v("Selecione uma opção")]), _vm._v(" "), _c("option", {
+          attrs: {
+            value: "0"
+          }
+        }, [_vm._v("0")]), _vm._v(" "), _c("option", {
+          attrs: {
+            value: "1"
+          }
+        }, [_vm._v("1")])])])]), _vm._v(" "), _c("b-button", {
+          staticClass: "btn btn-success mt-3",
+          attrs: {
+            type: "submit",
+            block: ""
+          }
+        }, [_vm._v("Salvar alterações")])], 1)])], 1)];
+      }
+    }, {
+      key: "excluir",
+      fn: function fn(dados) {
+        return [_c("i", [_c("notifications", {
+          attrs: {
+            group: "foo2",
+            id: String(dados.row.id_user),
+            position: "top center",
+            width: "500px"
+          }
+        }), _vm._v(" "), _c("button", {
+          staticClass: "btn btn-danger",
+          on: {
+            click: function click($event) {
+              return _vm.excluir_user(dados);
+            }
+          }
+        }, [_c("i", {
+          staticClass: "fa fa-trash-alt"
+        })])], 1)];
+      }
+    }])
+  }, [_vm._v(" "), _c("template", {
+    slot: "empty-results"
+  }, [_vm._v("\n            Nenhuma enquete encontrada\n        ")]), _vm._v(" "), _c("template", {
+    slot: "paginataion-previous-button"
+  }, [_vm._v("\n            Anterior\n        ")]), _vm._v(" "), _c("template", {
+    slot: "paginataion-next-button"
+  }, [_vm._v("\n            Próximo\n        ")])], 2);
+};
+
+var staticRenderFns = [];
+render._withStripped = true;
+
+
+/***/ }),
+
+/***/ "./node_modules/backo2/index.js":
+/*!**************************************!*\
+  !*** ./node_modules/backo2/index.js ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+/**
+ * Expose `Backoff`.
+ */
+
+module.exports = Backoff;
+
+/**
+ * Initialize backoff timer with `opts`.
+ *
+ * - `min` initial timeout in milliseconds [100]
+ * - `max` max timeout [10000]
+ * - `jitter` [0]
+ * - `factor` [2]
+ *
+ * @param {Object} opts
+ * @api public
+ */
+
+function Backoff(opts) {
+  opts = opts || {};
+  this.ms = opts.min || 100;
+  this.max = opts.max || 10000;
+  this.factor = opts.factor || 2;
+  this.jitter = opts.jitter > 0 && opts.jitter <= 1 ? opts.jitter : 0;
+  this.attempts = 0;
+}
+
+/**
+ * Return the backoff duration.
+ *
+ * @return {Number}
+ * @api public
+ */
+
+Backoff.prototype.duration = function(){
+  var ms = this.ms * Math.pow(this.factor, this.attempts++);
+  if (this.jitter) {
+    var rand =  Math.random();
+    var deviation = Math.floor(rand * this.jitter * ms);
+    ms = (Math.floor(rand * 10) & 1) == 0  ? ms - deviation : ms + deviation;
+  }
+  return Math.min(ms, this.max) | 0;
+};
+
+/**
+ * Reset the number of attempts.
+ *
+ * @api public
+ */
+
+Backoff.prototype.reset = function(){
+  this.attempts = 0;
+};
+
+/**
+ * Set the minimum duration
+ *
+ * @api public
+ */
+
+Backoff.prototype.setMin = function(min){
+  this.ms = min;
+};
+
+/**
+ * Set the maximum duration
+ *
+ * @api public
+ */
+
+Backoff.prototype.setMax = function(max){
+  this.max = max;
+};
+
+/**
+ * Set the jitter
+ *
+ * @api public
+ */
+
+Backoff.prototype.setJitter = function(jitter){
+  this.jitter = jitter;
+};
+
+
+
+/***/ }),
+
+/***/ "./node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/base64-arraybuffer/lib/base64-arraybuffer.js ***!
+  \*******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/*
+ * base64-arraybuffer
+ * https://github.com/niklasvh/base64-arraybuffer
+ *
+ * Copyright (c) 2012 Niklas von Hertzen
+ * Licensed under the MIT license.
+ */
+(function(chars){
+  "use strict";
+
+  exports.encode = function(arraybuffer) {
+    var bytes = new Uint8Array(arraybuffer),
+    i, len = bytes.length, base64 = "";
+
+    for (i = 0; i < len; i+=3) {
+      base64 += chars[bytes[i] >> 2];
+      base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+      base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+      base64 += chars[bytes[i + 2] & 63];
+    }
+
+    if ((len % 3) === 2) {
+      base64 = base64.substring(0, base64.length - 1) + "=";
+    } else if (len % 3 === 1) {
+      base64 = base64.substring(0, base64.length - 2) + "==";
+    }
+
+    return base64;
+  };
+
+  exports.decode =  function(base64) {
+    var bufferLength = base64.length * 0.75,
+    len = base64.length, i, p = 0,
+    encoded1, encoded2, encoded3, encoded4;
+
+    if (base64[base64.length - 1] === "=") {
+      bufferLength--;
+      if (base64[base64.length - 2] === "=") {
+        bufferLength--;
+      }
+    }
+
+    var arraybuffer = new ArrayBuffer(bufferLength),
+    bytes = new Uint8Array(arraybuffer);
+
+    for (i = 0; i < len; i+=4) {
+      encoded1 = chars.indexOf(base64[i]);
+      encoded2 = chars.indexOf(base64[i+1]);
+      encoded3 = chars.indexOf(base64[i+2]);
+      encoded4 = chars.indexOf(base64[i+3]);
+
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+
+    return arraybuffer;
+  };
+})("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
+
+
+/***/ }),
+
+/***/ "./node_modules/base64-js/index.js":
+/*!*****************************************!*\
+  !*** ./node_modules/base64-js/index.js ***!
+  \*****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+exports.byteLength = byteLength
+exports.toByteArray = toByteArray
+exports.fromByteArray = fromByteArray
+
+var lookup = []
+var revLookup = []
+var Arr = typeof Uint8Array !== 'undefined' ? Uint8Array : Array
+
+var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+for (var i = 0, len = code.length; i < len; ++i) {
+  lookup[i] = code[i]
+  revLookup[code.charCodeAt(i)] = i
+}
+
+// Support decoding URL-safe base64 strings, as Node.js does.
+// See: https://en.wikipedia.org/wiki/Base64#URL_applications
+revLookup['-'.charCodeAt(0)] = 62
+revLookup['_'.charCodeAt(0)] = 63
+
+function getLens (b64) {
+  var len = b64.length
+
+  if (len % 4 > 0) {
+    throw new Error('Invalid string. Length must be a multiple of 4')
+  }
+
+  // Trim off extra bytes after placeholder bytes are found
+  // See: https://github.com/beatgammit/base64-js/issues/42
+  var validLen = b64.indexOf('=')
+  if (validLen === -1) validLen = len
+
+  var placeHoldersLen = validLen === len
+    ? 0
+    : 4 - (validLen % 4)
+
+  return [validLen, placeHoldersLen]
+}
+
+// base64 is 4/3 + up to two characters of the original data
+function byteLength (b64) {
+  var lens = getLens(b64)
+  var validLen = lens[0]
+  var placeHoldersLen = lens[1]
+  return ((validLen + placeHoldersLen) * 3 / 4) - placeHoldersLen
+}
+
+function _byteLength (b64, validLen, placeHoldersLen) {
+  return ((validLen + placeHoldersLen) * 3 / 4) - placeHoldersLen
+}
+
+function toByteArray (b64) {
+  var tmp
+  var lens = getLens(b64)
+  var validLen = lens[0]
+  var placeHoldersLen = lens[1]
+
+  var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen))
+
+  var curByte = 0
+
+  // if there are placeholders, only get up to the last complete 4 chars
+  var len = placeHoldersLen > 0
+    ? validLen - 4
+    : validLen
+
+  var i
+  for (i = 0; i < len; i += 4) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 18) |
+      (revLookup[b64.charCodeAt(i + 1)] << 12) |
+      (revLookup[b64.charCodeAt(i + 2)] << 6) |
+      revLookup[b64.charCodeAt(i + 3)]
+    arr[curByte++] = (tmp >> 16) & 0xFF
+    arr[curByte++] = (tmp >> 8) & 0xFF
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  if (placeHoldersLen === 2) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 2) |
+      (revLookup[b64.charCodeAt(i + 1)] >> 4)
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  if (placeHoldersLen === 1) {
+    tmp =
+      (revLookup[b64.charCodeAt(i)] << 10) |
+      (revLookup[b64.charCodeAt(i + 1)] << 4) |
+      (revLookup[b64.charCodeAt(i + 2)] >> 2)
+    arr[curByte++] = (tmp >> 8) & 0xFF
+    arr[curByte++] = tmp & 0xFF
+  }
+
+  return arr
+}
+
+function tripletToBase64 (num) {
+  return lookup[num >> 18 & 0x3F] +
+    lookup[num >> 12 & 0x3F] +
+    lookup[num >> 6 & 0x3F] +
+    lookup[num & 0x3F]
+}
+
+function encodeChunk (uint8, start, end) {
+  var tmp
+  var output = []
+  for (var i = start; i < end; i += 3) {
+    tmp =
+      ((uint8[i] << 16) & 0xFF0000) +
+      ((uint8[i + 1] << 8) & 0xFF00) +
+      (uint8[i + 2] & 0xFF)
+    output.push(tripletToBase64(tmp))
+  }
+  return output.join('')
+}
+
+function fromByteArray (uint8) {
+  var tmp
+  var len = uint8.length
+  var extraBytes = len % 3 // if we have 1 byte left, pad 2 bytes
+  var parts = []
+  var maxChunkLength = 16383 // must be multiple of 3
+
+  // go through the array every three bytes, we'll deal with trailing stuff later
+  for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
+    parts.push(encodeChunk(uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)))
+  }
+
+  // pad the end with zeros, but make sure to not forget the extra bytes
+  if (extraBytes === 1) {
+    tmp = uint8[len - 1]
+    parts.push(
+      lookup[tmp >> 2] +
+      lookup[(tmp << 4) & 0x3F] +
+      '=='
+    )
+  } else if (extraBytes === 2) {
+    tmp = (uint8[len - 2] << 8) + uint8[len - 1]
+    parts.push(
+      lookup[tmp >> 10] +
+      lookup[(tmp >> 4) & 0x3F] +
+      lookup[(tmp << 2) & 0x3F] +
+      '='
+    )
+  }
+
+  return parts.join('')
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/blob/index.js":
+/*!************************************!*\
+  !*** ./node_modules/blob/index.js ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * Create a blob builder even when vendor prefixes exist
+ */
+
+var BlobBuilder = typeof BlobBuilder !== 'undefined' ? BlobBuilder :
+  typeof WebKitBlobBuilder !== 'undefined' ? WebKitBlobBuilder :
+  typeof MSBlobBuilder !== 'undefined' ? MSBlobBuilder :
+  typeof MozBlobBuilder !== 'undefined' ? MozBlobBuilder : 
+  false;
+
+/**
+ * Check if Blob constructor is supported
+ */
+
+var blobSupported = (function() {
+  try {
+    var a = new Blob(['hi']);
+    return a.size === 2;
+  } catch(e) {
+    return false;
+  }
+})();
+
+/**
+ * Check if Blob constructor supports ArrayBufferViews
+ * Fails in Safari 6, so we need to map to ArrayBuffers there.
+ */
+
+var blobSupportsArrayBufferView = blobSupported && (function() {
+  try {
+    var b = new Blob([new Uint8Array([1,2])]);
+    return b.size === 2;
+  } catch(e) {
+    return false;
+  }
+})();
+
+/**
+ * Check if BlobBuilder is supported
+ */
+
+var blobBuilderSupported = BlobBuilder
+  && BlobBuilder.prototype.append
+  && BlobBuilder.prototype.getBlob;
+
+/**
+ * Helper function that maps ArrayBufferViews to ArrayBuffers
+ * Used by BlobBuilder constructor and old browsers that didn't
+ * support it in the Blob constructor.
+ */
+
+function mapArrayBufferViews(ary) {
+  return ary.map(function(chunk) {
+    if (chunk.buffer instanceof ArrayBuffer) {
+      var buf = chunk.buffer;
+
+      // if this is a subarray, make a copy so we only
+      // include the subarray region from the underlying buffer
+      if (chunk.byteLength !== buf.byteLength) {
+        var copy = new Uint8Array(chunk.byteLength);
+        copy.set(new Uint8Array(buf, chunk.byteOffset, chunk.byteLength));
+        buf = copy.buffer;
+      }
+
+      return buf;
+    }
+
+    return chunk;
+  });
+}
+
+function BlobBuilderConstructor(ary, options) {
+  options = options || {};
+
+  var bb = new BlobBuilder();
+  mapArrayBufferViews(ary).forEach(function(part) {
+    bb.append(part);
+  });
+
+  return (options.type) ? bb.getBlob(options.type) : bb.getBlob();
+};
+
+function BlobConstructor(ary, options) {
+  return new Blob(mapArrayBufferViews(ary), options || {});
+};
+
+if (typeof Blob !== 'undefined') {
+  BlobBuilderConstructor.prototype = Blob.prototype;
+  BlobConstructor.prototype = Blob.prototype;
+}
+
+module.exports = (function() {
+  if (blobSupported) {
+    return blobSupportsArrayBufferView ? Blob : BlobConstructor;
+  } else if (blobBuilderSupported) {
+    return BlobBuilderConstructor;
+  } else {
+    return undefined;
+  }
+})();
 
 
 /***/ }),
@@ -6992,6 +7982,5929 @@ render._withStripped = true;
 
 }));
 //# sourceMappingURL=bootstrap.js.map
+
+
+/***/ }),
+
+/***/ "./node_modules/buffer/index.js":
+/*!**************************************!*\
+  !*** ./node_modules/buffer/index.js ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(global) {/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <http://feross.org>
+ * @license  MIT
+ */
+/* eslint-disable no-proto */
+
+
+
+var base64 = __webpack_require__(/*! base64-js */ "./node_modules/base64-js/index.js")
+var ieee754 = __webpack_require__(/*! ieee754 */ "./node_modules/ieee754/index.js")
+var isArray = __webpack_require__(/*! isarray */ "./node_modules/isarray/index.js")
+
+exports.Buffer = Buffer
+exports.SlowBuffer = SlowBuffer
+exports.INSPECT_MAX_BYTES = 50
+
+/**
+ * If `Buffer.TYPED_ARRAY_SUPPORT`:
+ *   === true    Use Uint8Array implementation (fastest)
+ *   === false   Use Object implementation (most compatible, even IE6)
+ *
+ * Browsers that support typed arrays are IE 10+, Firefox 4+, Chrome 7+, Safari 5.1+,
+ * Opera 11.6+, iOS 4.2+.
+ *
+ * Due to various browser bugs, sometimes the Object implementation will be used even
+ * when the browser supports typed arrays.
+ *
+ * Note:
+ *
+ *   - Firefox 4-29 lacks support for adding new properties to `Uint8Array` instances,
+ *     See: https://bugzilla.mozilla.org/show_bug.cgi?id=695438.
+ *
+ *   - Chrome 9-10 is missing the `TypedArray.prototype.subarray` function.
+ *
+ *   - IE10 has a broken `TypedArray.prototype.subarray` function which returns arrays of
+ *     incorrect length in some situations.
+
+ * We detect these buggy browsers and set `Buffer.TYPED_ARRAY_SUPPORT` to `false` so they
+ * get the Object implementation, which is slower but behaves correctly.
+ */
+Buffer.TYPED_ARRAY_SUPPORT = global.TYPED_ARRAY_SUPPORT !== undefined
+  ? global.TYPED_ARRAY_SUPPORT
+  : typedArraySupport()
+
+/*
+ * Export kMaxLength after typed array support is determined.
+ */
+exports.kMaxLength = kMaxLength()
+
+function typedArraySupport () {
+  try {
+    var arr = new Uint8Array(1)
+    arr.__proto__ = {__proto__: Uint8Array.prototype, foo: function () { return 42 }}
+    return arr.foo() === 42 && // typed array instances can be augmented
+        typeof arr.subarray === 'function' && // chrome 9-10 lack `subarray`
+        arr.subarray(1, 1).byteLength === 0 // ie10 has broken `subarray`
+  } catch (e) {
+    return false
+  }
+}
+
+function kMaxLength () {
+  return Buffer.TYPED_ARRAY_SUPPORT
+    ? 0x7fffffff
+    : 0x3fffffff
+}
+
+function createBuffer (that, length) {
+  if (kMaxLength() < length) {
+    throw new RangeError('Invalid typed array length')
+  }
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    // Return an augmented `Uint8Array` instance, for best performance
+    that = new Uint8Array(length)
+    that.__proto__ = Buffer.prototype
+  } else {
+    // Fallback: Return an object instance of the Buffer class
+    if (that === null) {
+      that = new Buffer(length)
+    }
+    that.length = length
+  }
+
+  return that
+}
+
+/**
+ * The Buffer constructor returns instances of `Uint8Array` that have their
+ * prototype changed to `Buffer.prototype`. Furthermore, `Buffer` is a subclass of
+ * `Uint8Array`, so the returned instances will have all the node `Buffer` methods
+ * and the `Uint8Array` methods. Square bracket notation works as expected -- it
+ * returns a single octet.
+ *
+ * The `Uint8Array` prototype remains unmodified.
+ */
+
+function Buffer (arg, encodingOrOffset, length) {
+  if (!Buffer.TYPED_ARRAY_SUPPORT && !(this instanceof Buffer)) {
+    return new Buffer(arg, encodingOrOffset, length)
+  }
+
+  // Common case.
+  if (typeof arg === 'number') {
+    if (typeof encodingOrOffset === 'string') {
+      throw new Error(
+        'If encoding is specified then the first argument must be a string'
+      )
+    }
+    return allocUnsafe(this, arg)
+  }
+  return from(this, arg, encodingOrOffset, length)
+}
+
+Buffer.poolSize = 8192 // not used by this implementation
+
+// TODO: Legacy, not needed anymore. Remove in next major version.
+Buffer._augment = function (arr) {
+  arr.__proto__ = Buffer.prototype
+  return arr
+}
+
+function from (that, value, encodingOrOffset, length) {
+  if (typeof value === 'number') {
+    throw new TypeError('"value" argument must not be a number')
+  }
+
+  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) {
+    return fromArrayBuffer(that, value, encodingOrOffset, length)
+  }
+
+  if (typeof value === 'string') {
+    return fromString(that, value, encodingOrOffset)
+  }
+
+  return fromObject(that, value)
+}
+
+/**
+ * Functionally equivalent to Buffer(arg, encoding) but throws a TypeError
+ * if value is a number.
+ * Buffer.from(str[, encoding])
+ * Buffer.from(array)
+ * Buffer.from(buffer)
+ * Buffer.from(arrayBuffer[, byteOffset[, length]])
+ **/
+Buffer.from = function (value, encodingOrOffset, length) {
+  return from(null, value, encodingOrOffset, length)
+}
+
+if (Buffer.TYPED_ARRAY_SUPPORT) {
+  Buffer.prototype.__proto__ = Uint8Array.prototype
+  Buffer.__proto__ = Uint8Array
+  if (typeof Symbol !== 'undefined' && Symbol.species &&
+      Buffer[Symbol.species] === Buffer) {
+    // Fix subarray() in ES2016. See: https://github.com/feross/buffer/pull/97
+    Object.defineProperty(Buffer, Symbol.species, {
+      value: null,
+      configurable: true
+    })
+  }
+}
+
+function assertSize (size) {
+  if (typeof size !== 'number') {
+    throw new TypeError('"size" argument must be a number')
+  } else if (size < 0) {
+    throw new RangeError('"size" argument must not be negative')
+  }
+}
+
+function alloc (that, size, fill, encoding) {
+  assertSize(size)
+  if (size <= 0) {
+    return createBuffer(that, size)
+  }
+  if (fill !== undefined) {
+    // Only pay attention to encoding if it's a string. This
+    // prevents accidentally sending in a number that would
+    // be interpretted as a start offset.
+    return typeof encoding === 'string'
+      ? createBuffer(that, size).fill(fill, encoding)
+      : createBuffer(that, size).fill(fill)
+  }
+  return createBuffer(that, size)
+}
+
+/**
+ * Creates a new filled Buffer instance.
+ * alloc(size[, fill[, encoding]])
+ **/
+Buffer.alloc = function (size, fill, encoding) {
+  return alloc(null, size, fill, encoding)
+}
+
+function allocUnsafe (that, size) {
+  assertSize(size)
+  that = createBuffer(that, size < 0 ? 0 : checked(size) | 0)
+  if (!Buffer.TYPED_ARRAY_SUPPORT) {
+    for (var i = 0; i < size; ++i) {
+      that[i] = 0
+    }
+  }
+  return that
+}
+
+/**
+ * Equivalent to Buffer(num), by default creates a non-zero-filled Buffer instance.
+ * */
+Buffer.allocUnsafe = function (size) {
+  return allocUnsafe(null, size)
+}
+/**
+ * Equivalent to SlowBuffer(num), by default creates a non-zero-filled Buffer instance.
+ */
+Buffer.allocUnsafeSlow = function (size) {
+  return allocUnsafe(null, size)
+}
+
+function fromString (that, string, encoding) {
+  if (typeof encoding !== 'string' || encoding === '') {
+    encoding = 'utf8'
+  }
+
+  if (!Buffer.isEncoding(encoding)) {
+    throw new TypeError('"encoding" must be a valid string encoding')
+  }
+
+  var length = byteLength(string, encoding) | 0
+  that = createBuffer(that, length)
+
+  var actual = that.write(string, encoding)
+
+  if (actual !== length) {
+    // Writing a hex string, for example, that contains invalid characters will
+    // cause everything after the first invalid character to be ignored. (e.g.
+    // 'abxxcd' will be treated as 'ab')
+    that = that.slice(0, actual)
+  }
+
+  return that
+}
+
+function fromArrayLike (that, array) {
+  var length = array.length < 0 ? 0 : checked(array.length) | 0
+  that = createBuffer(that, length)
+  for (var i = 0; i < length; i += 1) {
+    that[i] = array[i] & 255
+  }
+  return that
+}
+
+function fromArrayBuffer (that, array, byteOffset, length) {
+  array.byteLength // this throws if `array` is not a valid ArrayBuffer
+
+  if (byteOffset < 0 || array.byteLength < byteOffset) {
+    throw new RangeError('\'offset\' is out of bounds')
+  }
+
+  if (array.byteLength < byteOffset + (length || 0)) {
+    throw new RangeError('\'length\' is out of bounds')
+  }
+
+  if (byteOffset === undefined && length === undefined) {
+    array = new Uint8Array(array)
+  } else if (length === undefined) {
+    array = new Uint8Array(array, byteOffset)
+  } else {
+    array = new Uint8Array(array, byteOffset, length)
+  }
+
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    // Return an augmented `Uint8Array` instance, for best performance
+    that = array
+    that.__proto__ = Buffer.prototype
+  } else {
+    // Fallback: Return an object instance of the Buffer class
+    that = fromArrayLike(that, array)
+  }
+  return that
+}
+
+function fromObject (that, obj) {
+  if (Buffer.isBuffer(obj)) {
+    var len = checked(obj.length) | 0
+    that = createBuffer(that, len)
+
+    if (that.length === 0) {
+      return that
+    }
+
+    obj.copy(that, 0, 0, len)
+    return that
+  }
+
+  if (obj) {
+    if ((typeof ArrayBuffer !== 'undefined' &&
+        obj.buffer instanceof ArrayBuffer) || 'length' in obj) {
+      if (typeof obj.length !== 'number' || isnan(obj.length)) {
+        return createBuffer(that, 0)
+      }
+      return fromArrayLike(that, obj)
+    }
+
+    if (obj.type === 'Buffer' && isArray(obj.data)) {
+      return fromArrayLike(that, obj.data)
+    }
+  }
+
+  throw new TypeError('First argument must be a string, Buffer, ArrayBuffer, Array, or array-like object.')
+}
+
+function checked (length) {
+  // Note: cannot use `length < kMaxLength()` here because that fails when
+  // length is NaN (which is otherwise coerced to zero.)
+  if (length >= kMaxLength()) {
+    throw new RangeError('Attempt to allocate Buffer larger than maximum ' +
+                         'size: 0x' + kMaxLength().toString(16) + ' bytes')
+  }
+  return length | 0
+}
+
+function SlowBuffer (length) {
+  if (+length != length) { // eslint-disable-line eqeqeq
+    length = 0
+  }
+  return Buffer.alloc(+length)
+}
+
+Buffer.isBuffer = function isBuffer (b) {
+  return !!(b != null && b._isBuffer)
+}
+
+Buffer.compare = function compare (a, b) {
+  if (!Buffer.isBuffer(a) || !Buffer.isBuffer(b)) {
+    throw new TypeError('Arguments must be Buffers')
+  }
+
+  if (a === b) return 0
+
+  var x = a.length
+  var y = b.length
+
+  for (var i = 0, len = Math.min(x, y); i < len; ++i) {
+    if (a[i] !== b[i]) {
+      x = a[i]
+      y = b[i]
+      break
+    }
+  }
+
+  if (x < y) return -1
+  if (y < x) return 1
+  return 0
+}
+
+Buffer.isEncoding = function isEncoding (encoding) {
+  switch (String(encoding).toLowerCase()) {
+    case 'hex':
+    case 'utf8':
+    case 'utf-8':
+    case 'ascii':
+    case 'latin1':
+    case 'binary':
+    case 'base64':
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      return true
+    default:
+      return false
+  }
+}
+
+Buffer.concat = function concat (list, length) {
+  if (!isArray(list)) {
+    throw new TypeError('"list" argument must be an Array of Buffers')
+  }
+
+  if (list.length === 0) {
+    return Buffer.alloc(0)
+  }
+
+  var i
+  if (length === undefined) {
+    length = 0
+    for (i = 0; i < list.length; ++i) {
+      length += list[i].length
+    }
+  }
+
+  var buffer = Buffer.allocUnsafe(length)
+  var pos = 0
+  for (i = 0; i < list.length; ++i) {
+    var buf = list[i]
+    if (!Buffer.isBuffer(buf)) {
+      throw new TypeError('"list" argument must be an Array of Buffers')
+    }
+    buf.copy(buffer, pos)
+    pos += buf.length
+  }
+  return buffer
+}
+
+function byteLength (string, encoding) {
+  if (Buffer.isBuffer(string)) {
+    return string.length
+  }
+  if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' &&
+      (ArrayBuffer.isView(string) || string instanceof ArrayBuffer)) {
+    return string.byteLength
+  }
+  if (typeof string !== 'string') {
+    string = '' + string
+  }
+
+  var len = string.length
+  if (len === 0) return 0
+
+  // Use a for loop to avoid recursion
+  var loweredCase = false
+  for (;;) {
+    switch (encoding) {
+      case 'ascii':
+      case 'latin1':
+      case 'binary':
+        return len
+      case 'utf8':
+      case 'utf-8':
+      case undefined:
+        return utf8ToBytes(string).length
+      case 'ucs2':
+      case 'ucs-2':
+      case 'utf16le':
+      case 'utf-16le':
+        return len * 2
+      case 'hex':
+        return len >>> 1
+      case 'base64':
+        return base64ToBytes(string).length
+      default:
+        if (loweredCase) return utf8ToBytes(string).length // assume utf8
+        encoding = ('' + encoding).toLowerCase()
+        loweredCase = true
+    }
+  }
+}
+Buffer.byteLength = byteLength
+
+function slowToString (encoding, start, end) {
+  var loweredCase = false
+
+  // No need to verify that "this.length <= MAX_UINT32" since it's a read-only
+  // property of a typed array.
+
+  // This behaves neither like String nor Uint8Array in that we set start/end
+  // to their upper/lower bounds if the value passed is out of range.
+  // undefined is handled specially as per ECMA-262 6th Edition,
+  // Section 13.3.3.7 Runtime Semantics: KeyedBindingInitialization.
+  if (start === undefined || start < 0) {
+    start = 0
+  }
+  // Return early if start > this.length. Done here to prevent potential uint32
+  // coercion fail below.
+  if (start > this.length) {
+    return ''
+  }
+
+  if (end === undefined || end > this.length) {
+    end = this.length
+  }
+
+  if (end <= 0) {
+    return ''
+  }
+
+  // Force coersion to uint32. This will also coerce falsey/NaN values to 0.
+  end >>>= 0
+  start >>>= 0
+
+  if (end <= start) {
+    return ''
+  }
+
+  if (!encoding) encoding = 'utf8'
+
+  while (true) {
+    switch (encoding) {
+      case 'hex':
+        return hexSlice(this, start, end)
+
+      case 'utf8':
+      case 'utf-8':
+        return utf8Slice(this, start, end)
+
+      case 'ascii':
+        return asciiSlice(this, start, end)
+
+      case 'latin1':
+      case 'binary':
+        return latin1Slice(this, start, end)
+
+      case 'base64':
+        return base64Slice(this, start, end)
+
+      case 'ucs2':
+      case 'ucs-2':
+      case 'utf16le':
+      case 'utf-16le':
+        return utf16leSlice(this, start, end)
+
+      default:
+        if (loweredCase) throw new TypeError('Unknown encoding: ' + encoding)
+        encoding = (encoding + '').toLowerCase()
+        loweredCase = true
+    }
+  }
+}
+
+// The property is used by `Buffer.isBuffer` and `is-buffer` (in Safari 5-7) to detect
+// Buffer instances.
+Buffer.prototype._isBuffer = true
+
+function swap (b, n, m) {
+  var i = b[n]
+  b[n] = b[m]
+  b[m] = i
+}
+
+Buffer.prototype.swap16 = function swap16 () {
+  var len = this.length
+  if (len % 2 !== 0) {
+    throw new RangeError('Buffer size must be a multiple of 16-bits')
+  }
+  for (var i = 0; i < len; i += 2) {
+    swap(this, i, i + 1)
+  }
+  return this
+}
+
+Buffer.prototype.swap32 = function swap32 () {
+  var len = this.length
+  if (len % 4 !== 0) {
+    throw new RangeError('Buffer size must be a multiple of 32-bits')
+  }
+  for (var i = 0; i < len; i += 4) {
+    swap(this, i, i + 3)
+    swap(this, i + 1, i + 2)
+  }
+  return this
+}
+
+Buffer.prototype.swap64 = function swap64 () {
+  var len = this.length
+  if (len % 8 !== 0) {
+    throw new RangeError('Buffer size must be a multiple of 64-bits')
+  }
+  for (var i = 0; i < len; i += 8) {
+    swap(this, i, i + 7)
+    swap(this, i + 1, i + 6)
+    swap(this, i + 2, i + 5)
+    swap(this, i + 3, i + 4)
+  }
+  return this
+}
+
+Buffer.prototype.toString = function toString () {
+  var length = this.length | 0
+  if (length === 0) return ''
+  if (arguments.length === 0) return utf8Slice(this, 0, length)
+  return slowToString.apply(this, arguments)
+}
+
+Buffer.prototype.equals = function equals (b) {
+  if (!Buffer.isBuffer(b)) throw new TypeError('Argument must be a Buffer')
+  if (this === b) return true
+  return Buffer.compare(this, b) === 0
+}
+
+Buffer.prototype.inspect = function inspect () {
+  var str = ''
+  var max = exports.INSPECT_MAX_BYTES
+  if (this.length > 0) {
+    str = this.toString('hex', 0, max).match(/.{2}/g).join(' ')
+    if (this.length > max) str += ' ... '
+  }
+  return '<Buffer ' + str + '>'
+}
+
+Buffer.prototype.compare = function compare (target, start, end, thisStart, thisEnd) {
+  if (!Buffer.isBuffer(target)) {
+    throw new TypeError('Argument must be a Buffer')
+  }
+
+  if (start === undefined) {
+    start = 0
+  }
+  if (end === undefined) {
+    end = target ? target.length : 0
+  }
+  if (thisStart === undefined) {
+    thisStart = 0
+  }
+  if (thisEnd === undefined) {
+    thisEnd = this.length
+  }
+
+  if (start < 0 || end > target.length || thisStart < 0 || thisEnd > this.length) {
+    throw new RangeError('out of range index')
+  }
+
+  if (thisStart >= thisEnd && start >= end) {
+    return 0
+  }
+  if (thisStart >= thisEnd) {
+    return -1
+  }
+  if (start >= end) {
+    return 1
+  }
+
+  start >>>= 0
+  end >>>= 0
+  thisStart >>>= 0
+  thisEnd >>>= 0
+
+  if (this === target) return 0
+
+  var x = thisEnd - thisStart
+  var y = end - start
+  var len = Math.min(x, y)
+
+  var thisCopy = this.slice(thisStart, thisEnd)
+  var targetCopy = target.slice(start, end)
+
+  for (var i = 0; i < len; ++i) {
+    if (thisCopy[i] !== targetCopy[i]) {
+      x = thisCopy[i]
+      y = targetCopy[i]
+      break
+    }
+  }
+
+  if (x < y) return -1
+  if (y < x) return 1
+  return 0
+}
+
+// Finds either the first index of `val` in `buffer` at offset >= `byteOffset`,
+// OR the last index of `val` in `buffer` at offset <= `byteOffset`.
+//
+// Arguments:
+// - buffer - a Buffer to search
+// - val - a string, Buffer, or number
+// - byteOffset - an index into `buffer`; will be clamped to an int32
+// - encoding - an optional encoding, relevant is val is a string
+// - dir - true for indexOf, false for lastIndexOf
+function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
+  // Empty buffer means no match
+  if (buffer.length === 0) return -1
+
+  // Normalize byteOffset
+  if (typeof byteOffset === 'string') {
+    encoding = byteOffset
+    byteOffset = 0
+  } else if (byteOffset > 0x7fffffff) {
+    byteOffset = 0x7fffffff
+  } else if (byteOffset < -0x80000000) {
+    byteOffset = -0x80000000
+  }
+  byteOffset = +byteOffset  // Coerce to Number.
+  if (isNaN(byteOffset)) {
+    // byteOffset: it it's undefined, null, NaN, "foo", etc, search whole buffer
+    byteOffset = dir ? 0 : (buffer.length - 1)
+  }
+
+  // Normalize byteOffset: negative offsets start from the end of the buffer
+  if (byteOffset < 0) byteOffset = buffer.length + byteOffset
+  if (byteOffset >= buffer.length) {
+    if (dir) return -1
+    else byteOffset = buffer.length - 1
+  } else if (byteOffset < 0) {
+    if (dir) byteOffset = 0
+    else return -1
+  }
+
+  // Normalize val
+  if (typeof val === 'string') {
+    val = Buffer.from(val, encoding)
+  }
+
+  // Finally, search either indexOf (if dir is true) or lastIndexOf
+  if (Buffer.isBuffer(val)) {
+    // Special case: looking for empty string/buffer always fails
+    if (val.length === 0) {
+      return -1
+    }
+    return arrayIndexOf(buffer, val, byteOffset, encoding, dir)
+  } else if (typeof val === 'number') {
+    val = val & 0xFF // Search for a byte value [0-255]
+    if (Buffer.TYPED_ARRAY_SUPPORT &&
+        typeof Uint8Array.prototype.indexOf === 'function') {
+      if (dir) {
+        return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset)
+      } else {
+        return Uint8Array.prototype.lastIndexOf.call(buffer, val, byteOffset)
+      }
+    }
+    return arrayIndexOf(buffer, [ val ], byteOffset, encoding, dir)
+  }
+
+  throw new TypeError('val must be string, number or Buffer')
+}
+
+function arrayIndexOf (arr, val, byteOffset, encoding, dir) {
+  var indexSize = 1
+  var arrLength = arr.length
+  var valLength = val.length
+
+  if (encoding !== undefined) {
+    encoding = String(encoding).toLowerCase()
+    if (encoding === 'ucs2' || encoding === 'ucs-2' ||
+        encoding === 'utf16le' || encoding === 'utf-16le') {
+      if (arr.length < 2 || val.length < 2) {
+        return -1
+      }
+      indexSize = 2
+      arrLength /= 2
+      valLength /= 2
+      byteOffset /= 2
+    }
+  }
+
+  function read (buf, i) {
+    if (indexSize === 1) {
+      return buf[i]
+    } else {
+      return buf.readUInt16BE(i * indexSize)
+    }
+  }
+
+  var i
+  if (dir) {
+    var foundIndex = -1
+    for (i = byteOffset; i < arrLength; i++) {
+      if (read(arr, i) === read(val, foundIndex === -1 ? 0 : i - foundIndex)) {
+        if (foundIndex === -1) foundIndex = i
+        if (i - foundIndex + 1 === valLength) return foundIndex * indexSize
+      } else {
+        if (foundIndex !== -1) i -= i - foundIndex
+        foundIndex = -1
+      }
+    }
+  } else {
+    if (byteOffset + valLength > arrLength) byteOffset = arrLength - valLength
+    for (i = byteOffset; i >= 0; i--) {
+      var found = true
+      for (var j = 0; j < valLength; j++) {
+        if (read(arr, i + j) !== read(val, j)) {
+          found = false
+          break
+        }
+      }
+      if (found) return i
+    }
+  }
+
+  return -1
+}
+
+Buffer.prototype.includes = function includes (val, byteOffset, encoding) {
+  return this.indexOf(val, byteOffset, encoding) !== -1
+}
+
+Buffer.prototype.indexOf = function indexOf (val, byteOffset, encoding) {
+  return bidirectionalIndexOf(this, val, byteOffset, encoding, true)
+}
+
+Buffer.prototype.lastIndexOf = function lastIndexOf (val, byteOffset, encoding) {
+  return bidirectionalIndexOf(this, val, byteOffset, encoding, false)
+}
+
+function hexWrite (buf, string, offset, length) {
+  offset = Number(offset) || 0
+  var remaining = buf.length - offset
+  if (!length) {
+    length = remaining
+  } else {
+    length = Number(length)
+    if (length > remaining) {
+      length = remaining
+    }
+  }
+
+  // must be an even number of digits
+  var strLen = string.length
+  if (strLen % 2 !== 0) throw new TypeError('Invalid hex string')
+
+  if (length > strLen / 2) {
+    length = strLen / 2
+  }
+  for (var i = 0; i < length; ++i) {
+    var parsed = parseInt(string.substr(i * 2, 2), 16)
+    if (isNaN(parsed)) return i
+    buf[offset + i] = parsed
+  }
+  return i
+}
+
+function utf8Write (buf, string, offset, length) {
+  return blitBuffer(utf8ToBytes(string, buf.length - offset), buf, offset, length)
+}
+
+function asciiWrite (buf, string, offset, length) {
+  return blitBuffer(asciiToBytes(string), buf, offset, length)
+}
+
+function latin1Write (buf, string, offset, length) {
+  return asciiWrite(buf, string, offset, length)
+}
+
+function base64Write (buf, string, offset, length) {
+  return blitBuffer(base64ToBytes(string), buf, offset, length)
+}
+
+function ucs2Write (buf, string, offset, length) {
+  return blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length)
+}
+
+Buffer.prototype.write = function write (string, offset, length, encoding) {
+  // Buffer#write(string)
+  if (offset === undefined) {
+    encoding = 'utf8'
+    length = this.length
+    offset = 0
+  // Buffer#write(string, encoding)
+  } else if (length === undefined && typeof offset === 'string') {
+    encoding = offset
+    length = this.length
+    offset = 0
+  // Buffer#write(string, offset[, length][, encoding])
+  } else if (isFinite(offset)) {
+    offset = offset | 0
+    if (isFinite(length)) {
+      length = length | 0
+      if (encoding === undefined) encoding = 'utf8'
+    } else {
+      encoding = length
+      length = undefined
+    }
+  // legacy write(string, encoding, offset, length) - remove in v0.13
+  } else {
+    throw new Error(
+      'Buffer.write(string, encoding, offset[, length]) is no longer supported'
+    )
+  }
+
+  var remaining = this.length - offset
+  if (length === undefined || length > remaining) length = remaining
+
+  if ((string.length > 0 && (length < 0 || offset < 0)) || offset > this.length) {
+    throw new RangeError('Attempt to write outside buffer bounds')
+  }
+
+  if (!encoding) encoding = 'utf8'
+
+  var loweredCase = false
+  for (;;) {
+    switch (encoding) {
+      case 'hex':
+        return hexWrite(this, string, offset, length)
+
+      case 'utf8':
+      case 'utf-8':
+        return utf8Write(this, string, offset, length)
+
+      case 'ascii':
+        return asciiWrite(this, string, offset, length)
+
+      case 'latin1':
+      case 'binary':
+        return latin1Write(this, string, offset, length)
+
+      case 'base64':
+        // Warning: maxLength not taken into account in base64Write
+        return base64Write(this, string, offset, length)
+
+      case 'ucs2':
+      case 'ucs-2':
+      case 'utf16le':
+      case 'utf-16le':
+        return ucs2Write(this, string, offset, length)
+
+      default:
+        if (loweredCase) throw new TypeError('Unknown encoding: ' + encoding)
+        encoding = ('' + encoding).toLowerCase()
+        loweredCase = true
+    }
+  }
+}
+
+Buffer.prototype.toJSON = function toJSON () {
+  return {
+    type: 'Buffer',
+    data: Array.prototype.slice.call(this._arr || this, 0)
+  }
+}
+
+function base64Slice (buf, start, end) {
+  if (start === 0 && end === buf.length) {
+    return base64.fromByteArray(buf)
+  } else {
+    return base64.fromByteArray(buf.slice(start, end))
+  }
+}
+
+function utf8Slice (buf, start, end) {
+  end = Math.min(buf.length, end)
+  var res = []
+
+  var i = start
+  while (i < end) {
+    var firstByte = buf[i]
+    var codePoint = null
+    var bytesPerSequence = (firstByte > 0xEF) ? 4
+      : (firstByte > 0xDF) ? 3
+      : (firstByte > 0xBF) ? 2
+      : 1
+
+    if (i + bytesPerSequence <= end) {
+      var secondByte, thirdByte, fourthByte, tempCodePoint
+
+      switch (bytesPerSequence) {
+        case 1:
+          if (firstByte < 0x80) {
+            codePoint = firstByte
+          }
+          break
+        case 2:
+          secondByte = buf[i + 1]
+          if ((secondByte & 0xC0) === 0x80) {
+            tempCodePoint = (firstByte & 0x1F) << 0x6 | (secondByte & 0x3F)
+            if (tempCodePoint > 0x7F) {
+              codePoint = tempCodePoint
+            }
+          }
+          break
+        case 3:
+          secondByte = buf[i + 1]
+          thirdByte = buf[i + 2]
+          if ((secondByte & 0xC0) === 0x80 && (thirdByte & 0xC0) === 0x80) {
+            tempCodePoint = (firstByte & 0xF) << 0xC | (secondByte & 0x3F) << 0x6 | (thirdByte & 0x3F)
+            if (tempCodePoint > 0x7FF && (tempCodePoint < 0xD800 || tempCodePoint > 0xDFFF)) {
+              codePoint = tempCodePoint
+            }
+          }
+          break
+        case 4:
+          secondByte = buf[i + 1]
+          thirdByte = buf[i + 2]
+          fourthByte = buf[i + 3]
+          if ((secondByte & 0xC0) === 0x80 && (thirdByte & 0xC0) === 0x80 && (fourthByte & 0xC0) === 0x80) {
+            tempCodePoint = (firstByte & 0xF) << 0x12 | (secondByte & 0x3F) << 0xC | (thirdByte & 0x3F) << 0x6 | (fourthByte & 0x3F)
+            if (tempCodePoint > 0xFFFF && tempCodePoint < 0x110000) {
+              codePoint = tempCodePoint
+            }
+          }
+      }
+    }
+
+    if (codePoint === null) {
+      // we did not generate a valid codePoint so insert a
+      // replacement char (U+FFFD) and advance only 1 byte
+      codePoint = 0xFFFD
+      bytesPerSequence = 1
+    } else if (codePoint > 0xFFFF) {
+      // encode to utf16 (surrogate pair dance)
+      codePoint -= 0x10000
+      res.push(codePoint >>> 10 & 0x3FF | 0xD800)
+      codePoint = 0xDC00 | codePoint & 0x3FF
+    }
+
+    res.push(codePoint)
+    i += bytesPerSequence
+  }
+
+  return decodeCodePointsArray(res)
+}
+
+// Based on http://stackoverflow.com/a/22747272/680742, the browser with
+// the lowest limit is Chrome, with 0x10000 args.
+// We go 1 magnitude less, for safety
+var MAX_ARGUMENTS_LENGTH = 0x1000
+
+function decodeCodePointsArray (codePoints) {
+  var len = codePoints.length
+  if (len <= MAX_ARGUMENTS_LENGTH) {
+    return String.fromCharCode.apply(String, codePoints) // avoid extra slice()
+  }
+
+  // Decode in chunks to avoid "call stack size exceeded".
+  var res = ''
+  var i = 0
+  while (i < len) {
+    res += String.fromCharCode.apply(
+      String,
+      codePoints.slice(i, i += MAX_ARGUMENTS_LENGTH)
+    )
+  }
+  return res
+}
+
+function asciiSlice (buf, start, end) {
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; ++i) {
+    ret += String.fromCharCode(buf[i] & 0x7F)
+  }
+  return ret
+}
+
+function latin1Slice (buf, start, end) {
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; ++i) {
+    ret += String.fromCharCode(buf[i])
+  }
+  return ret
+}
+
+function hexSlice (buf, start, end) {
+  var len = buf.length
+
+  if (!start || start < 0) start = 0
+  if (!end || end < 0 || end > len) end = len
+
+  var out = ''
+  for (var i = start; i < end; ++i) {
+    out += toHex(buf[i])
+  }
+  return out
+}
+
+function utf16leSlice (buf, start, end) {
+  var bytes = buf.slice(start, end)
+  var res = ''
+  for (var i = 0; i < bytes.length; i += 2) {
+    res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256)
+  }
+  return res
+}
+
+Buffer.prototype.slice = function slice (start, end) {
+  var len = this.length
+  start = ~~start
+  end = end === undefined ? len : ~~end
+
+  if (start < 0) {
+    start += len
+    if (start < 0) start = 0
+  } else if (start > len) {
+    start = len
+  }
+
+  if (end < 0) {
+    end += len
+    if (end < 0) end = 0
+  } else if (end > len) {
+    end = len
+  }
+
+  if (end < start) end = start
+
+  var newBuf
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    newBuf = this.subarray(start, end)
+    newBuf.__proto__ = Buffer.prototype
+  } else {
+    var sliceLen = end - start
+    newBuf = new Buffer(sliceLen, undefined)
+    for (var i = 0; i < sliceLen; ++i) {
+      newBuf[i] = this[i + start]
+    }
+  }
+
+  return newBuf
+}
+
+/*
+ * Need to make sure that buffer isn't trying to write out of bounds.
+ */
+function checkOffset (offset, ext, length) {
+  if ((offset % 1) !== 0 || offset < 0) throw new RangeError('offset is not uint')
+  if (offset + ext > length) throw new RangeError('Trying to access beyond buffer length')
+}
+
+Buffer.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert) {
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100)) {
+    val += this[offset + i] * mul
+  }
+
+  return val
+}
+
+Buffer.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert) {
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) {
+    checkOffset(offset, byteLength, this.length)
+  }
+
+  var val = this[offset + --byteLength]
+  var mul = 1
+  while (byteLength > 0 && (mul *= 0x100)) {
+    val += this[offset + --byteLength] * mul
+  }
+
+  return val
+}
+
+Buffer.prototype.readUInt8 = function readUInt8 (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 1, this.length)
+  return this[offset]
+}
+
+Buffer.prototype.readUInt16LE = function readUInt16LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
+  return this[offset] | (this[offset + 1] << 8)
+}
+
+Buffer.prototype.readUInt16BE = function readUInt16BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
+  return (this[offset] << 8) | this[offset + 1]
+}
+
+Buffer.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+
+  return ((this[offset]) |
+      (this[offset + 1] << 8) |
+      (this[offset + 2] << 16)) +
+      (this[offset + 3] * 0x1000000)
+}
+
+Buffer.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+
+  return (this[offset] * 0x1000000) +
+    ((this[offset + 1] << 16) |
+    (this[offset + 2] << 8) |
+    this[offset + 3])
+}
+
+Buffer.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
+
+  var val = this[offset]
+  var mul = 1
+  var i = 0
+  while (++i < byteLength && (mul *= 0x100)) {
+    val += this[offset + i] * mul
+  }
+  mul *= 0x80
+
+  if (val >= mul) val -= Math.pow(2, 8 * byteLength)
+
+  return val
+}
+
+Buffer.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) checkOffset(offset, byteLength, this.length)
+
+  var i = byteLength
+  var mul = 1
+  var val = this[offset + --i]
+  while (i > 0 && (mul *= 0x100)) {
+    val += this[offset + --i] * mul
+  }
+  mul *= 0x80
+
+  if (val >= mul) val -= Math.pow(2, 8 * byteLength)
+
+  return val
+}
+
+Buffer.prototype.readInt8 = function readInt8 (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 1, this.length)
+  if (!(this[offset] & 0x80)) return (this[offset])
+  return ((0xff - this[offset] + 1) * -1)
+}
+
+Buffer.prototype.readInt16LE = function readInt16LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
+  var val = this[offset] | (this[offset + 1] << 8)
+  return (val & 0x8000) ? val | 0xFFFF0000 : val
+}
+
+Buffer.prototype.readInt16BE = function readInt16BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 2, this.length)
+  var val = this[offset + 1] | (this[offset] << 8)
+  return (val & 0x8000) ? val | 0xFFFF0000 : val
+}
+
+Buffer.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+
+  return (this[offset]) |
+    (this[offset + 1] << 8) |
+    (this[offset + 2] << 16) |
+    (this[offset + 3] << 24)
+}
+
+Buffer.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+
+  return (this[offset] << 24) |
+    (this[offset + 1] << 16) |
+    (this[offset + 2] << 8) |
+    (this[offset + 3])
+}
+
+Buffer.prototype.readFloatLE = function readFloatLE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+  return ieee754.read(this, offset, true, 23, 4)
+}
+
+Buffer.prototype.readFloatBE = function readFloatBE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 4, this.length)
+  return ieee754.read(this, offset, false, 23, 4)
+}
+
+Buffer.prototype.readDoubleLE = function readDoubleLE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 8, this.length)
+  return ieee754.read(this, offset, true, 52, 8)
+}
+
+Buffer.prototype.readDoubleBE = function readDoubleBE (offset, noAssert) {
+  if (!noAssert) checkOffset(offset, 8, this.length)
+  return ieee754.read(this, offset, false, 52, 8)
+}
+
+function checkInt (buf, value, offset, ext, max, min) {
+  if (!Buffer.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance')
+  if (value > max || value < min) throw new RangeError('"value" argument is out of bounds')
+  if (offset + ext > buf.length) throw new RangeError('Index out of range')
+}
+
+Buffer.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) {
+    var maxBytes = Math.pow(2, 8 * byteLength) - 1
+    checkInt(this, value, offset, byteLength, maxBytes, 0)
+  }
+
+  var mul = 1
+  var i = 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100)) {
+    this[offset + i] = (value / mul) & 0xFF
+  }
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset | 0
+  byteLength = byteLength | 0
+  if (!noAssert) {
+    var maxBytes = Math.pow(2, 8 * byteLength) - 1
+    checkInt(this, value, offset, byteLength, maxBytes, 0)
+  }
+
+  var i = byteLength - 1
+  var mul = 1
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100)) {
+    this[offset + i] = (value / mul) & 0xFF
+  }
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0)
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
+  this[offset] = (value & 0xff)
+  return offset + 1
+}
+
+function objectWriteUInt16 (buf, value, offset, littleEndian) {
+  if (value < 0) value = 0xffff + value + 1
+  for (var i = 0, j = Math.min(buf.length - offset, 2); i < j; ++i) {
+    buf[offset + i] = (value & (0xff << (8 * (littleEndian ? i : 1 - i)))) >>>
+      (littleEndian ? i : 1 - i) * 8
+  }
+}
+
+Buffer.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value & 0xff)
+    this[offset + 1] = (value >>> 8)
+  } else {
+    objectWriteUInt16(this, value, offset, true)
+  }
+  return offset + 2
+}
+
+Buffer.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 8)
+    this[offset + 1] = (value & 0xff)
+  } else {
+    objectWriteUInt16(this, value, offset, false)
+  }
+  return offset + 2
+}
+
+function objectWriteUInt32 (buf, value, offset, littleEndian) {
+  if (value < 0) value = 0xffffffff + value + 1
+  for (var i = 0, j = Math.min(buf.length - offset, 4); i < j; ++i) {
+    buf[offset + i] = (value >>> (littleEndian ? i : 3 - i) * 8) & 0xff
+  }
+}
+
+Buffer.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset + 3] = (value >>> 24)
+    this[offset + 2] = (value >>> 16)
+    this[offset + 1] = (value >>> 8)
+    this[offset] = (value & 0xff)
+  } else {
+    objectWriteUInt32(this, value, offset, true)
+  }
+  return offset + 4
+}
+
+Buffer.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 24)
+    this[offset + 1] = (value >>> 16)
+    this[offset + 2] = (value >>> 8)
+    this[offset + 3] = (value & 0xff)
+  } else {
+    objectWriteUInt32(this, value, offset, false)
+  }
+  return offset + 4
+}
+
+Buffer.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) {
+    var limit = Math.pow(2, 8 * byteLength - 1)
+
+    checkInt(this, value, offset, byteLength, limit - 1, -limit)
+  }
+
+  var i = 0
+  var mul = 1
+  var sub = 0
+  this[offset] = value & 0xFF
+  while (++i < byteLength && (mul *= 0x100)) {
+    if (value < 0 && sub === 0 && this[offset + i - 1] !== 0) {
+      sub = 1
+    }
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+  }
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) {
+    var limit = Math.pow(2, 8 * byteLength - 1)
+
+    checkInt(this, value, offset, byteLength, limit - 1, -limit)
+  }
+
+  var i = byteLength - 1
+  var mul = 1
+  var sub = 0
+  this[offset + i] = value & 0xFF
+  while (--i >= 0 && (mul *= 0x100)) {
+    if (value < 0 && sub === 0 && this[offset + i + 1] !== 0) {
+      sub = 1
+    }
+    this[offset + i] = ((value / mul) >> 0) - sub & 0xFF
+  }
+
+  return offset + byteLength
+}
+
+Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 1, 0x7f, -0x80)
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value)
+  if (value < 0) value = 0xff + value + 1
+  this[offset] = (value & 0xff)
+  return offset + 1
+}
+
+Buffer.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value & 0xff)
+    this[offset + 1] = (value >>> 8)
+  } else {
+    objectWriteUInt16(this, value, offset, true)
+  }
+  return offset + 2
+}
+
+Buffer.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 8)
+    this[offset + 1] = (value & 0xff)
+  } else {
+    objectWriteUInt16(this, value, offset, false)
+  }
+  return offset + 2
+}
+
+Buffer.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value & 0xff)
+    this[offset + 1] = (value >>> 8)
+    this[offset + 2] = (value >>> 16)
+    this[offset + 3] = (value >>> 24)
+  } else {
+    objectWriteUInt32(this, value, offset, true)
+  }
+  return offset + 4
+}
+
+Buffer.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) {
+  value = +value
+  offset = offset | 0
+  if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000)
+  if (value < 0) value = 0xffffffff + value + 1
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
+    this[offset] = (value >>> 24)
+    this[offset + 1] = (value >>> 16)
+    this[offset + 2] = (value >>> 8)
+    this[offset + 3] = (value & 0xff)
+  } else {
+    objectWriteUInt32(this, value, offset, false)
+  }
+  return offset + 4
+}
+
+function checkIEEE754 (buf, value, offset, ext, max, min) {
+  if (offset + ext > buf.length) throw new RangeError('Index out of range')
+  if (offset < 0) throw new RangeError('Index out of range')
+}
+
+function writeFloat (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    checkIEEE754(buf, value, offset, 4, 3.4028234663852886e+38, -3.4028234663852886e+38)
+  }
+  ieee754.write(buf, value, offset, littleEndian, 23, 4)
+  return offset + 4
+}
+
+Buffer.prototype.writeFloatLE = function writeFloatLE (value, offset, noAssert) {
+  return writeFloat(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeFloatBE = function writeFloatBE (value, offset, noAssert) {
+  return writeFloat(this, value, offset, false, noAssert)
+}
+
+function writeDouble (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    checkIEEE754(buf, value, offset, 8, 1.7976931348623157E+308, -1.7976931348623157E+308)
+  }
+  ieee754.write(buf, value, offset, littleEndian, 52, 8)
+  return offset + 8
+}
+
+Buffer.prototype.writeDoubleLE = function writeDoubleLE (value, offset, noAssert) {
+  return writeDouble(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeDoubleBE = function writeDoubleBE (value, offset, noAssert) {
+  return writeDouble(this, value, offset, false, noAssert)
+}
+
+// copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
+Buffer.prototype.copy = function copy (target, targetStart, start, end) {
+  if (!start) start = 0
+  if (!end && end !== 0) end = this.length
+  if (targetStart >= target.length) targetStart = target.length
+  if (!targetStart) targetStart = 0
+  if (end > 0 && end < start) end = start
+
+  // Copy 0 bytes; we're done
+  if (end === start) return 0
+  if (target.length === 0 || this.length === 0) return 0
+
+  // Fatal error conditions
+  if (targetStart < 0) {
+    throw new RangeError('targetStart out of bounds')
+  }
+  if (start < 0 || start >= this.length) throw new RangeError('sourceStart out of bounds')
+  if (end < 0) throw new RangeError('sourceEnd out of bounds')
+
+  // Are we oob?
+  if (end > this.length) end = this.length
+  if (target.length - targetStart < end - start) {
+    end = target.length - targetStart + start
+  }
+
+  var len = end - start
+  var i
+
+  if (this === target && start < targetStart && targetStart < end) {
+    // descending copy from end
+    for (i = len - 1; i >= 0; --i) {
+      target[i + targetStart] = this[i + start]
+    }
+  } else if (len < 1000 || !Buffer.TYPED_ARRAY_SUPPORT) {
+    // ascending copy from start
+    for (i = 0; i < len; ++i) {
+      target[i + targetStart] = this[i + start]
+    }
+  } else {
+    Uint8Array.prototype.set.call(
+      target,
+      this.subarray(start, start + len),
+      targetStart
+    )
+  }
+
+  return len
+}
+
+// Usage:
+//    buffer.fill(number[, offset[, end]])
+//    buffer.fill(buffer[, offset[, end]])
+//    buffer.fill(string[, offset[, end]][, encoding])
+Buffer.prototype.fill = function fill (val, start, end, encoding) {
+  // Handle string cases:
+  if (typeof val === 'string') {
+    if (typeof start === 'string') {
+      encoding = start
+      start = 0
+      end = this.length
+    } else if (typeof end === 'string') {
+      encoding = end
+      end = this.length
+    }
+    if (val.length === 1) {
+      var code = val.charCodeAt(0)
+      if (code < 256) {
+        val = code
+      }
+    }
+    if (encoding !== undefined && typeof encoding !== 'string') {
+      throw new TypeError('encoding must be a string')
+    }
+    if (typeof encoding === 'string' && !Buffer.isEncoding(encoding)) {
+      throw new TypeError('Unknown encoding: ' + encoding)
+    }
+  } else if (typeof val === 'number') {
+    val = val & 255
+  }
+
+  // Invalid ranges are not set to a default, so can range check early.
+  if (start < 0 || this.length < start || this.length < end) {
+    throw new RangeError('Out of range index')
+  }
+
+  if (end <= start) {
+    return this
+  }
+
+  start = start >>> 0
+  end = end === undefined ? this.length : end >>> 0
+
+  if (!val) val = 0
+
+  var i
+  if (typeof val === 'number') {
+    for (i = start; i < end; ++i) {
+      this[i] = val
+    }
+  } else {
+    var bytes = Buffer.isBuffer(val)
+      ? val
+      : utf8ToBytes(new Buffer(val, encoding).toString())
+    var len = bytes.length
+    for (i = 0; i < end - start; ++i) {
+      this[i + start] = bytes[i % len]
+    }
+  }
+
+  return this
+}
+
+// HELPER FUNCTIONS
+// ================
+
+var INVALID_BASE64_RE = /[^+\/0-9A-Za-z-_]/g
+
+function base64clean (str) {
+  // Node strips out invalid characters like \n and \t from the string, base64-js does not
+  str = stringtrim(str).replace(INVALID_BASE64_RE, '')
+  // Node converts strings with length < 2 to ''
+  if (str.length < 2) return ''
+  // Node allows for non-padded base64 strings (missing trailing ===), base64-js does not
+  while (str.length % 4 !== 0) {
+    str = str + '='
+  }
+  return str
+}
+
+function stringtrim (str) {
+  if (str.trim) return str.trim()
+  return str.replace(/^\s+|\s+$/g, '')
+}
+
+function toHex (n) {
+  if (n < 16) return '0' + n.toString(16)
+  return n.toString(16)
+}
+
+function utf8ToBytes (string, units) {
+  units = units || Infinity
+  var codePoint
+  var length = string.length
+  var leadSurrogate = null
+  var bytes = []
+
+  for (var i = 0; i < length; ++i) {
+    codePoint = string.charCodeAt(i)
+
+    // is surrogate component
+    if (codePoint > 0xD7FF && codePoint < 0xE000) {
+      // last char was a lead
+      if (!leadSurrogate) {
+        // no lead yet
+        if (codePoint > 0xDBFF) {
+          // unexpected trail
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        } else if (i + 1 === length) {
+          // unpaired lead
+          if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+          continue
+        }
+
+        // valid lead
+        leadSurrogate = codePoint
+
+        continue
+      }
+
+      // 2 leads in a row
+      if (codePoint < 0xDC00) {
+        if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+        leadSurrogate = codePoint
+        continue
+      }
+
+      // valid surrogate pair
+      codePoint = (leadSurrogate - 0xD800 << 10 | codePoint - 0xDC00) + 0x10000
+    } else if (leadSurrogate) {
+      // valid bmp char, but last char was a lead
+      if ((units -= 3) > -1) bytes.push(0xEF, 0xBF, 0xBD)
+    }
+
+    leadSurrogate = null
+
+    // encode utf8
+    if (codePoint < 0x80) {
+      if ((units -= 1) < 0) break
+      bytes.push(codePoint)
+    } else if (codePoint < 0x800) {
+      if ((units -= 2) < 0) break
+      bytes.push(
+        codePoint >> 0x6 | 0xC0,
+        codePoint & 0x3F | 0x80
+      )
+    } else if (codePoint < 0x10000) {
+      if ((units -= 3) < 0) break
+      bytes.push(
+        codePoint >> 0xC | 0xE0,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      )
+    } else if (codePoint < 0x110000) {
+      if ((units -= 4) < 0) break
+      bytes.push(
+        codePoint >> 0x12 | 0xF0,
+        codePoint >> 0xC & 0x3F | 0x80,
+        codePoint >> 0x6 & 0x3F | 0x80,
+        codePoint & 0x3F | 0x80
+      )
+    } else {
+      throw new Error('Invalid code point')
+    }
+  }
+
+  return bytes
+}
+
+function asciiToBytes (str) {
+  var byteArray = []
+  for (var i = 0; i < str.length; ++i) {
+    // Node's code seems to be doing this and not & 0x7F..
+    byteArray.push(str.charCodeAt(i) & 0xFF)
+  }
+  return byteArray
+}
+
+function utf16leToBytes (str, units) {
+  var c, hi, lo
+  var byteArray = []
+  for (var i = 0; i < str.length; ++i) {
+    if ((units -= 2) < 0) break
+
+    c = str.charCodeAt(i)
+    hi = c >> 8
+    lo = c % 256
+    byteArray.push(lo)
+    byteArray.push(hi)
+  }
+
+  return byteArray
+}
+
+function base64ToBytes (str) {
+  return base64.toByteArray(base64clean(str))
+}
+
+function blitBuffer (src, dst, offset, length) {
+  for (var i = 0; i < length; ++i) {
+    if ((i + offset >= dst.length) || (i >= src.length)) break
+    dst[i + offset] = src[i]
+  }
+  return i
+}
+
+function isnan (val) {
+  return val !== val // eslint-disable-line no-self-compare
+}
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./node_modules/component-bind/index.js":
+/*!**********************************************!*\
+  !*** ./node_modules/component-bind/index.js ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * Slice reference.
+ */
+
+var slice = [].slice;
+
+/**
+ * Bind `obj` to `fn`.
+ *
+ * @param {Object} obj
+ * @param {Function|String} fn or string
+ * @return {Function}
+ * @api public
+ */
+
+module.exports = function(obj, fn){
+  if ('string' == typeof fn) fn = obj[fn];
+  if ('function' != typeof fn) throw new Error('bind() requires a function');
+  var args = slice.call(arguments, 2);
+  return function(){
+    return fn.apply(obj, args.concat(slice.call(arguments)));
+  }
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/component-emitter/index.js":
+/*!*************************************************!*\
+  !*** ./node_modules/component-emitter/index.js ***!
+  \*************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Expose `Emitter`.
+ */
+
+if (true) {
+  module.exports = Emitter;
+}
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  function on() {
+    this.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks['$' + event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks['$' + event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+
+  // Remove event specific arrays for event types that no
+  // one is subscribed for to avoid memory leak.
+  if (callbacks.length === 0) {
+    delete this._callbacks['$' + event];
+  }
+
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+
+  var args = new Array(arguments.length - 1)
+    , callbacks = this._callbacks['$' + event];
+
+  for (var i = 1; i < arguments.length; i++) {
+    args[i - 1] = arguments[i];
+  }
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks['$' + event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/component-inherit/index.js":
+/*!*************************************************!*\
+  !*** ./node_modules/component-inherit/index.js ***!
+  \*************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+module.exports = function(a, b){
+  var fn = function(){};
+  fn.prototype = b.prototype;
+  a.prototype = new fn;
+  a.prototype.constructor = a;
+};
+
+/***/ }),
+
+/***/ "./node_modules/debug/src/browser.js":
+/*!*******************************************!*\
+  !*** ./node_modules/debug/src/browser.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(process) {/**
+ * This is the web browser implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = __webpack_require__(/*! ./debug */ "./node_modules/debug/src/debug.js");
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+  '#0000CC', '#0000FF', '#0033CC', '#0033FF', '#0066CC', '#0066FF', '#0099CC',
+  '#0099FF', '#00CC00', '#00CC33', '#00CC66', '#00CC99', '#00CCCC', '#00CCFF',
+  '#3300CC', '#3300FF', '#3333CC', '#3333FF', '#3366CC', '#3366FF', '#3399CC',
+  '#3399FF', '#33CC00', '#33CC33', '#33CC66', '#33CC99', '#33CCCC', '#33CCFF',
+  '#6600CC', '#6600FF', '#6633CC', '#6633FF', '#66CC00', '#66CC33', '#9900CC',
+  '#9900FF', '#9933CC', '#9933FF', '#99CC00', '#99CC33', '#CC0000', '#CC0033',
+  '#CC0066', '#CC0099', '#CC00CC', '#CC00FF', '#CC3300', '#CC3333', '#CC3366',
+  '#CC3399', '#CC33CC', '#CC33FF', '#CC6600', '#CC6633', '#CC9900', '#CC9933',
+  '#CCCC00', '#CCCC33', '#FF0000', '#FF0033', '#FF0066', '#FF0099', '#FF00CC',
+  '#FF00FF', '#FF3300', '#FF3333', '#FF3366', '#FF3399', '#FF33CC', '#FF33FF',
+  '#FF6600', '#FF6633', '#FF9900', '#FF9933', '#FFCC00', '#FFCC33'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+function useColors() {
+  // NB: In an Electron preload script, document will be defined but not fully
+  // initialized. Since we know we're in Chrome, we'll just detect this case
+  // explicitly
+  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') {
+    return true;
+  }
+
+  // Internet Explorer and Edge do not support colors.
+  if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+    return false;
+  }
+
+  // is webkit? http://stackoverflow.com/a/16459606/376773
+  // document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+  return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
+    // is firebug? http://stackoverflow.com/a/398120/376773
+    (typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
+    // is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+    // double check webkit in userAgent just in case we are in a worker
+    (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+}
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+exports.formatters.j = function(v) {
+  try {
+    return JSON.stringify(v);
+  } catch (err) {
+    return '[UnexpectedJSONParseError]: ' + err.message;
+  }
+};
+
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+  var useColors = this.useColors;
+
+  args[0] = (useColors ? '%c' : '')
+    + this.namespace
+    + (useColors ? ' %c' : ' ')
+    + args[0]
+    + (useColors ? '%c ' : ' ')
+    + '+' + exports.humanize(this.diff);
+
+  if (!useColors) return;
+
+  var c = 'color: ' + this.color;
+  args.splice(1, 0, c, 'color: inherit')
+
+  // the final "%c" is somewhat tricky, because there could be other
+  // arguments passed either before or after the %c, so we need to
+  // figure out the correct index to insert the CSS into
+  var index = 0;
+  var lastC = 0;
+  args[0].replace(/%[a-zA-Z%]/g, function(match) {
+    if ('%%' === match) return;
+    index++;
+    if ('%c' === match) {
+      // we only are interested in the *last* %c
+      // (the user may have provided their own)
+      lastC = index;
+    }
+  });
+
+  args.splice(lastC, 0, c);
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+
+function log() {
+  // this hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return 'object' === typeof console
+    && console.log
+    && Function.prototype.apply.call(console.log, console, arguments);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  try {
+    if (null == namespaces) {
+      exports.storage.removeItem('debug');
+    } else {
+      exports.storage.debug = namespaces;
+    }
+  } catch(e) {}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  var r;
+  try {
+    r = exports.storage.debug;
+  } catch(e) {}
+
+  // If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+  if (!r && typeof process !== 'undefined' && 'env' in process) {
+    r = process.env.DEBUG;
+  }
+
+  return r;
+}
+
+/**
+ * Enable namespaces listed in `localStorage.debug` initially.
+ */
+
+exports.enable(load());
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage() {
+  try {
+    return window.localStorage;
+  } catch (e) {}
+}
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../process/browser.js */ "./node_modules/process/browser.js")))
+
+/***/ }),
+
+/***/ "./node_modules/debug/src/debug.js":
+/*!*****************************************!*\
+  !*** ./node_modules/debug/src/debug.js ***!
+  \*****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
+exports.coerce = coerce;
+exports.disable = disable;
+exports.enable = enable;
+exports.enabled = enabled;
+exports.humanize = __webpack_require__(/*! ms */ "./node_modules/ms/index.js");
+
+/**
+ * Active `debug` instances.
+ */
+exports.instances = [];
+
+/**
+ * The currently active debug mode names, and names to skip.
+ */
+
+exports.names = [];
+exports.skips = [];
+
+/**
+ * Map of special "%n" handling functions, for the debug "format" argument.
+ *
+ * Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+ */
+
+exports.formatters = {};
+
+/**
+ * Select a color.
+ * @param {String} namespace
+ * @return {Number}
+ * @api private
+ */
+
+function selectColor(namespace) {
+  var hash = 0, i;
+
+  for (i in namespace) {
+    hash  = ((hash << 5) - hash) + namespace.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  return exports.colors[Math.abs(hash) % exports.colors.length];
+}
+
+/**
+ * Create a debugger with the given `namespace`.
+ *
+ * @param {String} namespace
+ * @return {Function}
+ * @api public
+ */
+
+function createDebug(namespace) {
+
+  var prevTime;
+
+  function debug() {
+    // disabled?
+    if (!debug.enabled) return;
+
+    var self = debug;
+
+    // set `diff` timestamp
+    var curr = +new Date();
+    var ms = curr - (prevTime || curr);
+    self.diff = ms;
+    self.prev = prevTime;
+    self.curr = curr;
+    prevTime = curr;
+
+    // turn the `arguments` into a proper Array
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+
+    args[0] = exports.coerce(args[0]);
+
+    if ('string' !== typeof args[0]) {
+      // anything else let's inspect with %O
+      args.unshift('%O');
+    }
+
+    // apply any `formatters` transformations
+    var index = 0;
+    args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
+      // if we encounter an escaped % then don't increase the array index
+      if (match === '%%') return match;
+      index++;
+      var formatter = exports.formatters[format];
+      if ('function' === typeof formatter) {
+        var val = args[index];
+        match = formatter.call(self, val);
+
+        // now we need to remove `args[index]` since it's inlined in the `format`
+        args.splice(index, 1);
+        index--;
+      }
+      return match;
+    });
+
+    // apply env-specific formatting (colors, etc.)
+    exports.formatArgs.call(self, args);
+
+    var logFn = debug.log || exports.log || console.log.bind(console);
+    logFn.apply(self, args);
+  }
+
+  debug.namespace = namespace;
+  debug.enabled = exports.enabled(namespace);
+  debug.useColors = exports.useColors();
+  debug.color = selectColor(namespace);
+  debug.destroy = destroy;
+
+  // env-specific initialization logic for debug instances
+  if ('function' === typeof exports.init) {
+    exports.init(debug);
+  }
+
+  exports.instances.push(debug);
+
+  return debug;
+}
+
+function destroy () {
+  var index = exports.instances.indexOf(this);
+  if (index !== -1) {
+    exports.instances.splice(index, 1);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
+ * Enables a debug mode by namespaces. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} namespaces
+ * @api public
+ */
+
+function enable(namespaces) {
+  exports.save(namespaces);
+
+  exports.names = [];
+  exports.skips = [];
+
+  var i;
+  var split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+  var len = split.length;
+
+  for (i = 0; i < len; i++) {
+    if (!split[i]) continue; // ignore empty strings
+    namespaces = split[i].replace(/\*/g, '.*?');
+    if (namespaces[0] === '-') {
+      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+    } else {
+      exports.names.push(new RegExp('^' + namespaces + '$'));
+    }
+  }
+
+  for (i = 0; i < exports.instances.length; i++) {
+    var instance = exports.instances[i];
+    instance.enabled = exports.enabled(instance.namespace);
+  }
+}
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+function disable() {
+  exports.enable('');
+}
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+function enabled(name) {
+  if (name[name.length - 1] === '*') {
+    return true;
+  }
+  var i, len;
+  for (i = 0, len = exports.skips.length; i < len; i++) {
+    if (exports.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (i = 0, len = exports.names.length; i < len; i++) {
+    if (exports.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Coerce `val`.
+ *
+ * @param {Mixed} val
+ * @return {Mixed}
+ * @api private
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/globalThis.browser.js":
+/*!*****************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/globalThis.browser.js ***!
+  \*****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = (function () {
+  if (typeof self !== 'undefined') {
+    return self;
+  } else if (typeof window !== 'undefined') {
+    return window;
+  } else {
+    return Function('return this')(); // eslint-disable-line no-new-func
+  }
+})();
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/index.js":
+/*!****************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/index.js ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+module.exports = __webpack_require__(/*! ./socket */ "./node_modules/engine.io-client/lib/socket.js");
+
+/**
+ * Exports parser
+ *
+ * @api public
+ *
+ */
+module.exports.parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/socket.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/socket.js ***!
+  \*****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+var transports = __webpack_require__(/*! ./transports/index */ "./node_modules/engine.io-client/lib/transports/index.js");
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('engine.io-client:socket');
+var index = __webpack_require__(/*! indexof */ "./node_modules/indexof/index.js");
+var parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+var parseuri = __webpack_require__(/*! parseuri */ "./node_modules/parseuri/index.js");
+var parseqs = __webpack_require__(/*! parseqs */ "./node_modules/parseqs/index.js");
+
+/**
+ * Module exports.
+ */
+
+module.exports = Socket;
+
+/**
+ * Socket constructor.
+ *
+ * @param {String|Object} uri or options
+ * @param {Object} options
+ * @api public
+ */
+
+function Socket (uri, opts) {
+  if (!(this instanceof Socket)) return new Socket(uri, opts);
+
+  opts = opts || {};
+
+  if (uri && 'object' === typeof uri) {
+    opts = uri;
+    uri = null;
+  }
+
+  if (uri) {
+    uri = parseuri(uri);
+    opts.hostname = uri.host;
+    opts.secure = uri.protocol === 'https' || uri.protocol === 'wss';
+    opts.port = uri.port;
+    if (uri.query) opts.query = uri.query;
+  } else if (opts.host) {
+    opts.hostname = parseuri(opts.host).host;
+  }
+
+  this.secure = null != opts.secure ? opts.secure
+    : (typeof location !== 'undefined' && 'https:' === location.protocol);
+
+  if (opts.hostname && !opts.port) {
+    // if no port is specified manually, use the protocol default
+    opts.port = this.secure ? '443' : '80';
+  }
+
+  this.agent = opts.agent || false;
+  this.hostname = opts.hostname ||
+    (typeof location !== 'undefined' ? location.hostname : 'localhost');
+  this.port = opts.port || (typeof location !== 'undefined' && location.port
+      ? location.port
+      : (this.secure ? 443 : 80));
+  this.query = opts.query || {};
+  if ('string' === typeof this.query) this.query = parseqs.decode(this.query);
+  this.upgrade = false !== opts.upgrade;
+  this.path = (opts.path || '/engine.io').replace(/\/$/, '') + '/';
+  this.forceJSONP = !!opts.forceJSONP;
+  this.jsonp = false !== opts.jsonp;
+  this.forceBase64 = !!opts.forceBase64;
+  this.enablesXDR = !!opts.enablesXDR;
+  this.withCredentials = false !== opts.withCredentials;
+  this.timestampParam = opts.timestampParam || 't';
+  this.timestampRequests = opts.timestampRequests;
+  this.transports = opts.transports || ['polling', 'websocket'];
+  this.transportOptions = opts.transportOptions || {};
+  this.readyState = '';
+  this.writeBuffer = [];
+  this.prevBufferLen = 0;
+  this.policyPort = opts.policyPort || 843;
+  this.rememberUpgrade = opts.rememberUpgrade || false;
+  this.binaryType = null;
+  this.onlyBinaryUpgrades = opts.onlyBinaryUpgrades;
+  this.perMessageDeflate = false !== opts.perMessageDeflate ? (opts.perMessageDeflate || {}) : false;
+
+  if (true === this.perMessageDeflate) this.perMessageDeflate = {};
+  if (this.perMessageDeflate && null == this.perMessageDeflate.threshold) {
+    this.perMessageDeflate.threshold = 1024;
+  }
+
+  // SSL options for Node.js client
+  this.pfx = opts.pfx || undefined;
+  this.key = opts.key || undefined;
+  this.passphrase = opts.passphrase || undefined;
+  this.cert = opts.cert || undefined;
+  this.ca = opts.ca || undefined;
+  this.ciphers = opts.ciphers || undefined;
+  this.rejectUnauthorized = opts.rejectUnauthorized === undefined ? true : opts.rejectUnauthorized;
+  this.forceNode = !!opts.forceNode;
+
+  // detect ReactNative environment
+  this.isReactNative = (typeof navigator !== 'undefined' && typeof navigator.product === 'string' && navigator.product.toLowerCase() === 'reactnative');
+
+  // other options for Node.js or ReactNative client
+  if (typeof self === 'undefined' || this.isReactNative) {
+    if (opts.extraHeaders && Object.keys(opts.extraHeaders).length > 0) {
+      this.extraHeaders = opts.extraHeaders;
+    }
+
+    if (opts.localAddress) {
+      this.localAddress = opts.localAddress;
+    }
+  }
+
+  // set on handshake
+  this.id = null;
+  this.upgrades = null;
+  this.pingInterval = null;
+  this.pingTimeout = null;
+
+  // set on heartbeat
+  this.pingIntervalTimer = null;
+  this.pingTimeoutTimer = null;
+
+  this.open();
+}
+
+Socket.priorWebsocketSuccess = false;
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Socket.prototype);
+
+/**
+ * Protocol version.
+ *
+ * @api public
+ */
+
+Socket.protocol = parser.protocol; // this is an int
+
+/**
+ * Expose deps for legacy compatibility
+ * and standalone browser access.
+ */
+
+Socket.Socket = Socket;
+Socket.Transport = __webpack_require__(/*! ./transport */ "./node_modules/engine.io-client/lib/transport.js");
+Socket.transports = __webpack_require__(/*! ./transports/index */ "./node_modules/engine.io-client/lib/transports/index.js");
+Socket.parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+
+/**
+ * Creates transport of the given type.
+ *
+ * @param {String} transport name
+ * @return {Transport}
+ * @api private
+ */
+
+Socket.prototype.createTransport = function (name) {
+  debug('creating transport "%s"', name);
+  var query = clone(this.query);
+
+  // append engine.io protocol identifier
+  query.EIO = parser.protocol;
+
+  // transport name
+  query.transport = name;
+
+  // per-transport options
+  var options = this.transportOptions[name] || {};
+
+  // session id if we already have one
+  if (this.id) query.sid = this.id;
+
+  var transport = new transports[name]({
+    query: query,
+    socket: this,
+    agent: options.agent || this.agent,
+    hostname: options.hostname || this.hostname,
+    port: options.port || this.port,
+    secure: options.secure || this.secure,
+    path: options.path || this.path,
+    forceJSONP: options.forceJSONP || this.forceJSONP,
+    jsonp: options.jsonp || this.jsonp,
+    forceBase64: options.forceBase64 || this.forceBase64,
+    enablesXDR: options.enablesXDR || this.enablesXDR,
+    withCredentials: options.withCredentials || this.withCredentials,
+    timestampRequests: options.timestampRequests || this.timestampRequests,
+    timestampParam: options.timestampParam || this.timestampParam,
+    policyPort: options.policyPort || this.policyPort,
+    pfx: options.pfx || this.pfx,
+    key: options.key || this.key,
+    passphrase: options.passphrase || this.passphrase,
+    cert: options.cert || this.cert,
+    ca: options.ca || this.ca,
+    ciphers: options.ciphers || this.ciphers,
+    rejectUnauthorized: options.rejectUnauthorized || this.rejectUnauthorized,
+    perMessageDeflate: options.perMessageDeflate || this.perMessageDeflate,
+    extraHeaders: options.extraHeaders || this.extraHeaders,
+    forceNode: options.forceNode || this.forceNode,
+    localAddress: options.localAddress || this.localAddress,
+    requestTimeout: options.requestTimeout || this.requestTimeout,
+    protocols: options.protocols || void (0),
+    isReactNative: this.isReactNative
+  });
+
+  return transport;
+};
+
+function clone (obj) {
+  var o = {};
+  for (var i in obj) {
+    if (obj.hasOwnProperty(i)) {
+      o[i] = obj[i];
+    }
+  }
+  return o;
+}
+
+/**
+ * Initializes transport to use and starts probe.
+ *
+ * @api private
+ */
+Socket.prototype.open = function () {
+  var transport;
+  if (this.rememberUpgrade && Socket.priorWebsocketSuccess && this.transports.indexOf('websocket') !== -1) {
+    transport = 'websocket';
+  } else if (0 === this.transports.length) {
+    // Emit error on next tick so it can be listened to
+    var self = this;
+    setTimeout(function () {
+      self.emit('error', 'No transports available');
+    }, 0);
+    return;
+  } else {
+    transport = this.transports[0];
+  }
+  this.readyState = 'opening';
+
+  // Retry with the next transport if the transport is disabled (jsonp: false)
+  try {
+    transport = this.createTransport(transport);
+  } catch (e) {
+    this.transports.shift();
+    this.open();
+    return;
+  }
+
+  transport.open();
+  this.setTransport(transport);
+};
+
+/**
+ * Sets the current transport. Disables the existing one (if any).
+ *
+ * @api private
+ */
+
+Socket.prototype.setTransport = function (transport) {
+  debug('setting transport %s', transport.name);
+  var self = this;
+
+  if (this.transport) {
+    debug('clearing existing transport %s', this.transport.name);
+    this.transport.removeAllListeners();
+  }
+
+  // set up transport
+  this.transport = transport;
+
+  // set up transport listeners
+  transport
+  .on('drain', function () {
+    self.onDrain();
+  })
+  .on('packet', function (packet) {
+    self.onPacket(packet);
+  })
+  .on('error', function (e) {
+    self.onError(e);
+  })
+  .on('close', function () {
+    self.onClose('transport close');
+  });
+};
+
+/**
+ * Probes a transport.
+ *
+ * @param {String} transport name
+ * @api private
+ */
+
+Socket.prototype.probe = function (name) {
+  debug('probing transport "%s"', name);
+  var transport = this.createTransport(name, { probe: 1 });
+  var failed = false;
+  var self = this;
+
+  Socket.priorWebsocketSuccess = false;
+
+  function onTransportOpen () {
+    if (self.onlyBinaryUpgrades) {
+      var upgradeLosesBinary = !this.supportsBinary && self.transport.supportsBinary;
+      failed = failed || upgradeLosesBinary;
+    }
+    if (failed) return;
+
+    debug('probe transport "%s" opened', name);
+    transport.send([{ type: 'ping', data: 'probe' }]);
+    transport.once('packet', function (msg) {
+      if (failed) return;
+      if ('pong' === msg.type && 'probe' === msg.data) {
+        debug('probe transport "%s" pong', name);
+        self.upgrading = true;
+        self.emit('upgrading', transport);
+        if (!transport) return;
+        Socket.priorWebsocketSuccess = 'websocket' === transport.name;
+
+        debug('pausing current transport "%s"', self.transport.name);
+        self.transport.pause(function () {
+          if (failed) return;
+          if ('closed' === self.readyState) return;
+          debug('changing transport and sending upgrade packet');
+
+          cleanup();
+
+          self.setTransport(transport);
+          transport.send([{ type: 'upgrade' }]);
+          self.emit('upgrade', transport);
+          transport = null;
+          self.upgrading = false;
+          self.flush();
+        });
+      } else {
+        debug('probe transport "%s" failed', name);
+        var err = new Error('probe error');
+        err.transport = transport.name;
+        self.emit('upgradeError', err);
+      }
+    });
+  }
+
+  function freezeTransport () {
+    if (failed) return;
+
+    // Any callback called by transport should be ignored since now
+    failed = true;
+
+    cleanup();
+
+    transport.close();
+    transport = null;
+  }
+
+  // Handle any error that happens while probing
+  function onerror (err) {
+    var error = new Error('probe error: ' + err);
+    error.transport = transport.name;
+
+    freezeTransport();
+
+    debug('probe transport "%s" failed because of error: %s', name, err);
+
+    self.emit('upgradeError', error);
+  }
+
+  function onTransportClose () {
+    onerror('transport closed');
+  }
+
+  // When the socket is closed while we're probing
+  function onclose () {
+    onerror('socket closed');
+  }
+
+  // When the socket is upgraded while we're probing
+  function onupgrade (to) {
+    if (transport && to.name !== transport.name) {
+      debug('"%s" works - aborting "%s"', to.name, transport.name);
+      freezeTransport();
+    }
+  }
+
+  // Remove all listeners on the transport and on self
+  function cleanup () {
+    transport.removeListener('open', onTransportOpen);
+    transport.removeListener('error', onerror);
+    transport.removeListener('close', onTransportClose);
+    self.removeListener('close', onclose);
+    self.removeListener('upgrading', onupgrade);
+  }
+
+  transport.once('open', onTransportOpen);
+  transport.once('error', onerror);
+  transport.once('close', onTransportClose);
+
+  this.once('close', onclose);
+  this.once('upgrading', onupgrade);
+
+  transport.open();
+};
+
+/**
+ * Called when connection is deemed open.
+ *
+ * @api public
+ */
+
+Socket.prototype.onOpen = function () {
+  debug('socket open');
+  this.readyState = 'open';
+  Socket.priorWebsocketSuccess = 'websocket' === this.transport.name;
+  this.emit('open');
+  this.flush();
+
+  // we check for `readyState` in case an `open`
+  // listener already closed the socket
+  if ('open' === this.readyState && this.upgrade && this.transport.pause) {
+    debug('starting upgrade probes');
+    for (var i = 0, l = this.upgrades.length; i < l; i++) {
+      this.probe(this.upgrades[i]);
+    }
+  }
+};
+
+/**
+ * Handles a packet.
+ *
+ * @api private
+ */
+
+Socket.prototype.onPacket = function (packet) {
+  if ('opening' === this.readyState || 'open' === this.readyState ||
+      'closing' === this.readyState) {
+    debug('socket receive: type "%s", data "%s"', packet.type, packet.data);
+
+    this.emit('packet', packet);
+
+    // Socket is live - any packet counts
+    this.emit('heartbeat');
+
+    switch (packet.type) {
+      case 'open':
+        this.onHandshake(JSON.parse(packet.data));
+        break;
+
+      case 'pong':
+        this.setPing();
+        this.emit('pong');
+        break;
+
+      case 'error':
+        var err = new Error('server error');
+        err.code = packet.data;
+        this.onError(err);
+        break;
+
+      case 'message':
+        this.emit('data', packet.data);
+        this.emit('message', packet.data);
+        break;
+    }
+  } else {
+    debug('packet received with socket readyState "%s"', this.readyState);
+  }
+};
+
+/**
+ * Called upon handshake completion.
+ *
+ * @param {Object} handshake obj
+ * @api private
+ */
+
+Socket.prototype.onHandshake = function (data) {
+  this.emit('handshake', data);
+  this.id = data.sid;
+  this.transport.query.sid = data.sid;
+  this.upgrades = this.filterUpgrades(data.upgrades);
+  this.pingInterval = data.pingInterval;
+  this.pingTimeout = data.pingTimeout;
+  this.onOpen();
+  // In case open handler closes socket
+  if ('closed' === this.readyState) return;
+  this.setPing();
+
+  // Prolong liveness of socket on heartbeat
+  this.removeListener('heartbeat', this.onHeartbeat);
+  this.on('heartbeat', this.onHeartbeat);
+};
+
+/**
+ * Resets ping timeout.
+ *
+ * @api private
+ */
+
+Socket.prototype.onHeartbeat = function (timeout) {
+  clearTimeout(this.pingTimeoutTimer);
+  var self = this;
+  self.pingTimeoutTimer = setTimeout(function () {
+    if ('closed' === self.readyState) return;
+    self.onClose('ping timeout');
+  }, timeout || (self.pingInterval + self.pingTimeout));
+};
+
+/**
+ * Pings server every `this.pingInterval` and expects response
+ * within `this.pingTimeout` or closes connection.
+ *
+ * @api private
+ */
+
+Socket.prototype.setPing = function () {
+  var self = this;
+  clearTimeout(self.pingIntervalTimer);
+  self.pingIntervalTimer = setTimeout(function () {
+    debug('writing ping packet - expecting pong within %sms', self.pingTimeout);
+    self.ping();
+    self.onHeartbeat(self.pingTimeout);
+  }, self.pingInterval);
+};
+
+/**
+* Sends a ping packet.
+*
+* @api private
+*/
+
+Socket.prototype.ping = function () {
+  var self = this;
+  this.sendPacket('ping', function () {
+    self.emit('ping');
+  });
+};
+
+/**
+ * Called on `drain` event
+ *
+ * @api private
+ */
+
+Socket.prototype.onDrain = function () {
+  this.writeBuffer.splice(0, this.prevBufferLen);
+
+  // setting prevBufferLen = 0 is very important
+  // for example, when upgrading, upgrade packet is sent over,
+  // and a nonzero prevBufferLen could cause problems on `drain`
+  this.prevBufferLen = 0;
+
+  if (0 === this.writeBuffer.length) {
+    this.emit('drain');
+  } else {
+    this.flush();
+  }
+};
+
+/**
+ * Flush write buffers.
+ *
+ * @api private
+ */
+
+Socket.prototype.flush = function () {
+  if ('closed' !== this.readyState && this.transport.writable &&
+    !this.upgrading && this.writeBuffer.length) {
+    debug('flushing %d packets in socket', this.writeBuffer.length);
+    this.transport.send(this.writeBuffer);
+    // keep track of current length of writeBuffer
+    // splice writeBuffer and callbackBuffer on `drain`
+    this.prevBufferLen = this.writeBuffer.length;
+    this.emit('flush');
+  }
+};
+
+/**
+ * Sends a message.
+ *
+ * @param {String} message.
+ * @param {Function} callback function.
+ * @param {Object} options.
+ * @return {Socket} for chaining.
+ * @api public
+ */
+
+Socket.prototype.write =
+Socket.prototype.send = function (msg, options, fn) {
+  this.sendPacket('message', msg, options, fn);
+  return this;
+};
+
+/**
+ * Sends a packet.
+ *
+ * @param {String} packet type.
+ * @param {String} data.
+ * @param {Object} options.
+ * @param {Function} callback function.
+ * @api private
+ */
+
+Socket.prototype.sendPacket = function (type, data, options, fn) {
+  if ('function' === typeof data) {
+    fn = data;
+    data = undefined;
+  }
+
+  if ('function' === typeof options) {
+    fn = options;
+    options = null;
+  }
+
+  if ('closing' === this.readyState || 'closed' === this.readyState) {
+    return;
+  }
+
+  options = options || {};
+  options.compress = false !== options.compress;
+
+  var packet = {
+    type: type,
+    data: data,
+    options: options
+  };
+  this.emit('packetCreate', packet);
+  this.writeBuffer.push(packet);
+  if (fn) this.once('flush', fn);
+  this.flush();
+};
+
+/**
+ * Closes the connection.
+ *
+ * @api private
+ */
+
+Socket.prototype.close = function () {
+  if ('opening' === this.readyState || 'open' === this.readyState) {
+    this.readyState = 'closing';
+
+    var self = this;
+
+    if (this.writeBuffer.length) {
+      this.once('drain', function () {
+        if (this.upgrading) {
+          waitForUpgrade();
+        } else {
+          close();
+        }
+      });
+    } else if (this.upgrading) {
+      waitForUpgrade();
+    } else {
+      close();
+    }
+  }
+
+  function close () {
+    self.onClose('forced close');
+    debug('socket closing - telling transport to close');
+    self.transport.close();
+  }
+
+  function cleanupAndClose () {
+    self.removeListener('upgrade', cleanupAndClose);
+    self.removeListener('upgradeError', cleanupAndClose);
+    close();
+  }
+
+  function waitForUpgrade () {
+    // wait for upgrade to finish since we can't send packets while pausing a transport
+    self.once('upgrade', cleanupAndClose);
+    self.once('upgradeError', cleanupAndClose);
+  }
+
+  return this;
+};
+
+/**
+ * Called upon transport error
+ *
+ * @api private
+ */
+
+Socket.prototype.onError = function (err) {
+  debug('socket error %j', err);
+  Socket.priorWebsocketSuccess = false;
+  this.emit('error', err);
+  this.onClose('transport error', err);
+};
+
+/**
+ * Called upon transport close.
+ *
+ * @api private
+ */
+
+Socket.prototype.onClose = function (reason, desc) {
+  if ('opening' === this.readyState || 'open' === this.readyState || 'closing' === this.readyState) {
+    debug('socket close with reason: "%s"', reason);
+    var self = this;
+
+    // clear timers
+    clearTimeout(this.pingIntervalTimer);
+    clearTimeout(this.pingTimeoutTimer);
+
+    // stop event from firing again for transport
+    this.transport.removeAllListeners('close');
+
+    // ensure transport won't stay open
+    this.transport.close();
+
+    // ignore further transport communication
+    this.transport.removeAllListeners();
+
+    // set ready state
+    this.readyState = 'closed';
+
+    // clear session id
+    this.id = null;
+
+    // emit close event
+    this.emit('close', reason, desc);
+
+    // clean buffers after, so users can still
+    // grab the buffers on `close` event
+    self.writeBuffer = [];
+    self.prevBufferLen = 0;
+  }
+};
+
+/**
+ * Filters upgrades, returning only those matching client transports.
+ *
+ * @param {Array} server upgrades
+ * @api private
+ *
+ */
+
+Socket.prototype.filterUpgrades = function (upgrades) {
+  var filteredUpgrades = [];
+  for (var i = 0, j = upgrades.length; i < j; i++) {
+    if (~index(this.transports, upgrades[i])) filteredUpgrades.push(upgrades[i]);
+  }
+  return filteredUpgrades;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transport.js":
+/*!********************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transport.js ***!
+  \********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+var parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+
+/**
+ * Module exports.
+ */
+
+module.exports = Transport;
+
+/**
+ * Transport abstract constructor.
+ *
+ * @param {Object} options.
+ * @api private
+ */
+
+function Transport (opts) {
+  this.path = opts.path;
+  this.hostname = opts.hostname;
+  this.port = opts.port;
+  this.secure = opts.secure;
+  this.query = opts.query;
+  this.timestampParam = opts.timestampParam;
+  this.timestampRequests = opts.timestampRequests;
+  this.readyState = '';
+  this.agent = opts.agent || false;
+  this.socket = opts.socket;
+  this.enablesXDR = opts.enablesXDR;
+  this.withCredentials = opts.withCredentials;
+
+  // SSL options for Node.js client
+  this.pfx = opts.pfx;
+  this.key = opts.key;
+  this.passphrase = opts.passphrase;
+  this.cert = opts.cert;
+  this.ca = opts.ca;
+  this.ciphers = opts.ciphers;
+  this.rejectUnauthorized = opts.rejectUnauthorized;
+  this.forceNode = opts.forceNode;
+
+  // results of ReactNative environment detection
+  this.isReactNative = opts.isReactNative;
+
+  // other options for Node.js client
+  this.extraHeaders = opts.extraHeaders;
+  this.localAddress = opts.localAddress;
+}
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Transport.prototype);
+
+/**
+ * Emits an error.
+ *
+ * @param {String} str
+ * @return {Transport} for chaining
+ * @api public
+ */
+
+Transport.prototype.onError = function (msg, desc) {
+  var err = new Error(msg);
+  err.type = 'TransportError';
+  err.description = desc;
+  this.emit('error', err);
+  return this;
+};
+
+/**
+ * Opens the transport.
+ *
+ * @api public
+ */
+
+Transport.prototype.open = function () {
+  if ('closed' === this.readyState || '' === this.readyState) {
+    this.readyState = 'opening';
+    this.doOpen();
+  }
+
+  return this;
+};
+
+/**
+ * Closes the transport.
+ *
+ * @api private
+ */
+
+Transport.prototype.close = function () {
+  if ('opening' === this.readyState || 'open' === this.readyState) {
+    this.doClose();
+    this.onClose();
+  }
+
+  return this;
+};
+
+/**
+ * Sends multiple packets.
+ *
+ * @param {Array} packets
+ * @api private
+ */
+
+Transport.prototype.send = function (packets) {
+  if ('open' === this.readyState) {
+    this.write(packets);
+  } else {
+    throw new Error('Transport not open');
+  }
+};
+
+/**
+ * Called upon open
+ *
+ * @api private
+ */
+
+Transport.prototype.onOpen = function () {
+  this.readyState = 'open';
+  this.writable = true;
+  this.emit('open');
+};
+
+/**
+ * Called with data.
+ *
+ * @param {String} data
+ * @api private
+ */
+
+Transport.prototype.onData = function (data) {
+  var packet = parser.decodePacket(data, this.socket.binaryType);
+  this.onPacket(packet);
+};
+
+/**
+ * Called with a decoded packet.
+ */
+
+Transport.prototype.onPacket = function (packet) {
+  this.emit('packet', packet);
+};
+
+/**
+ * Called upon close.
+ *
+ * @api private
+ */
+
+Transport.prototype.onClose = function () {
+  this.readyState = 'closed';
+  this.emit('close');
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transports/index.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transports/index.js ***!
+  \***************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies
+ */
+
+var XMLHttpRequest = __webpack_require__(/*! xmlhttprequest-ssl */ "./node_modules/engine.io-client/lib/xmlhttprequest.js");
+var XHR = __webpack_require__(/*! ./polling-xhr */ "./node_modules/engine.io-client/lib/transports/polling-xhr.js");
+var JSONP = __webpack_require__(/*! ./polling-jsonp */ "./node_modules/engine.io-client/lib/transports/polling-jsonp.js");
+var websocket = __webpack_require__(/*! ./websocket */ "./node_modules/engine.io-client/lib/transports/websocket.js");
+
+/**
+ * Export transports.
+ */
+
+exports.polling = polling;
+exports.websocket = websocket;
+
+/**
+ * Polling transport polymorphic constructor.
+ * Decides on xhr vs jsonp based on feature detection.
+ *
+ * @api private
+ */
+
+function polling (opts) {
+  var xhr;
+  var xd = false;
+  var xs = false;
+  var jsonp = false !== opts.jsonp;
+
+  if (typeof location !== 'undefined') {
+    var isSSL = 'https:' === location.protocol;
+    var port = location.port;
+
+    // some user agents have empty `location.port`
+    if (!port) {
+      port = isSSL ? 443 : 80;
+    }
+
+    xd = opts.hostname !== location.hostname || port !== opts.port;
+    xs = opts.secure !== isSSL;
+  }
+
+  opts.xdomain = xd;
+  opts.xscheme = xs;
+  xhr = new XMLHttpRequest(opts);
+
+  if ('open' in xhr && !opts.forceJSONP) {
+    return new XHR(opts);
+  } else {
+    if (!jsonp) throw new Error('JSONP disabled');
+    return new JSONP(opts);
+  }
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transports/polling-jsonp.js":
+/*!***********************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transports/polling-jsonp.js ***!
+  \***********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module requirements.
+ */
+
+var Polling = __webpack_require__(/*! ./polling */ "./node_modules/engine.io-client/lib/transports/polling.js");
+var inherit = __webpack_require__(/*! component-inherit */ "./node_modules/component-inherit/index.js");
+var globalThis = __webpack_require__(/*! ../globalThis */ "./node_modules/engine.io-client/lib/globalThis.browser.js");
+
+/**
+ * Module exports.
+ */
+
+module.exports = JSONPPolling;
+
+/**
+ * Cached regular expressions.
+ */
+
+var rNewline = /\n/g;
+var rEscapedNewline = /\\n/g;
+
+/**
+ * Global JSONP callbacks.
+ */
+
+var callbacks;
+
+/**
+ * Noop.
+ */
+
+function empty () { }
+
+/**
+ * JSONP Polling constructor.
+ *
+ * @param {Object} opts.
+ * @api public
+ */
+
+function JSONPPolling (opts) {
+  Polling.call(this, opts);
+
+  this.query = this.query || {};
+
+  // define global callbacks array if not present
+  // we do this here (lazily) to avoid unneeded global pollution
+  if (!callbacks) {
+    // we need to consider multiple engines in the same page
+    callbacks = globalThis.___eio = (globalThis.___eio || []);
+  }
+
+  // callback identifier
+  this.index = callbacks.length;
+
+  // add callback to jsonp global
+  var self = this;
+  callbacks.push(function (msg) {
+    self.onData(msg);
+  });
+
+  // append to query string
+  this.query.j = this.index;
+
+  // prevent spurious errors from being emitted when the window is unloaded
+  if (typeof addEventListener === 'function') {
+    addEventListener('beforeunload', function () {
+      if (self.script) self.script.onerror = empty;
+    }, false);
+  }
+}
+
+/**
+ * Inherits from Polling.
+ */
+
+inherit(JSONPPolling, Polling);
+
+/*
+ * JSONP only supports binary as base64 encoded strings
+ */
+
+JSONPPolling.prototype.supportsBinary = false;
+
+/**
+ * Closes the socket.
+ *
+ * @api private
+ */
+
+JSONPPolling.prototype.doClose = function () {
+  if (this.script) {
+    this.script.parentNode.removeChild(this.script);
+    this.script = null;
+  }
+
+  if (this.form) {
+    this.form.parentNode.removeChild(this.form);
+    this.form = null;
+    this.iframe = null;
+  }
+
+  Polling.prototype.doClose.call(this);
+};
+
+/**
+ * Starts a poll cycle.
+ *
+ * @api private
+ */
+
+JSONPPolling.prototype.doPoll = function () {
+  var self = this;
+  var script = document.createElement('script');
+
+  if (this.script) {
+    this.script.parentNode.removeChild(this.script);
+    this.script = null;
+  }
+
+  script.async = true;
+  script.src = this.uri();
+  script.onerror = function (e) {
+    self.onError('jsonp poll error', e);
+  };
+
+  var insertAt = document.getElementsByTagName('script')[0];
+  if (insertAt) {
+    insertAt.parentNode.insertBefore(script, insertAt);
+  } else {
+    (document.head || document.body).appendChild(script);
+  }
+  this.script = script;
+
+  var isUAgecko = 'undefined' !== typeof navigator && /gecko/i.test(navigator.userAgent);
+
+  if (isUAgecko) {
+    setTimeout(function () {
+      var iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      document.body.removeChild(iframe);
+    }, 100);
+  }
+};
+
+/**
+ * Writes with a hidden iframe.
+ *
+ * @param {String} data to send
+ * @param {Function} called upon flush.
+ * @api private
+ */
+
+JSONPPolling.prototype.doWrite = function (data, fn) {
+  var self = this;
+
+  if (!this.form) {
+    var form = document.createElement('form');
+    var area = document.createElement('textarea');
+    var id = this.iframeId = 'eio_iframe_' + this.index;
+    var iframe;
+
+    form.className = 'socketio';
+    form.style.position = 'absolute';
+    form.style.top = '-1000px';
+    form.style.left = '-1000px';
+    form.target = id;
+    form.method = 'POST';
+    form.setAttribute('accept-charset', 'utf-8');
+    area.name = 'd';
+    form.appendChild(area);
+    document.body.appendChild(form);
+
+    this.form = form;
+    this.area = area;
+  }
+
+  this.form.action = this.uri();
+
+  function complete () {
+    initIframe();
+    fn();
+  }
+
+  function initIframe () {
+    if (self.iframe) {
+      try {
+        self.form.removeChild(self.iframe);
+      } catch (e) {
+        self.onError('jsonp polling iframe removal error', e);
+      }
+    }
+
+    try {
+      // ie6 dynamic iframes with target="" support (thanks Chris Lambacher)
+      var html = '<iframe src="javascript:0" name="' + self.iframeId + '">';
+      iframe = document.createElement(html);
+    } catch (e) {
+      iframe = document.createElement('iframe');
+      iframe.name = self.iframeId;
+      iframe.src = 'javascript:0';
+    }
+
+    iframe.id = self.iframeId;
+
+    self.form.appendChild(iframe);
+    self.iframe = iframe;
+  }
+
+  initIframe();
+
+  // escape \n to prevent it from being converted into \r\n by some UAs
+  // double escaping is required for escaped new lines because unescaping of new lines can be done safely on server-side
+  data = data.replace(rEscapedNewline, '\\\n');
+  this.area.value = data.replace(rNewline, '\\n');
+
+  try {
+    this.form.submit();
+  } catch (e) {}
+
+  if (this.iframe.attachEvent) {
+    this.iframe.onreadystatechange = function () {
+      if (self.iframe.readyState === 'complete') {
+        complete();
+      }
+    };
+  } else {
+    this.iframe.onload = complete;
+  }
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transports/polling-xhr.js":
+/*!*********************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transports/polling-xhr.js ***!
+  \*********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* global attachEvent */
+
+/**
+ * Module requirements.
+ */
+
+var XMLHttpRequest = __webpack_require__(/*! xmlhttprequest-ssl */ "./node_modules/engine.io-client/lib/xmlhttprequest.js");
+var Polling = __webpack_require__(/*! ./polling */ "./node_modules/engine.io-client/lib/transports/polling.js");
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+var inherit = __webpack_require__(/*! component-inherit */ "./node_modules/component-inherit/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('engine.io-client:polling-xhr');
+var globalThis = __webpack_require__(/*! ../globalThis */ "./node_modules/engine.io-client/lib/globalThis.browser.js");
+
+/**
+ * Module exports.
+ */
+
+module.exports = XHR;
+module.exports.Request = Request;
+
+/**
+ * Empty function
+ */
+
+function empty () {}
+
+/**
+ * XHR Polling constructor.
+ *
+ * @param {Object} opts
+ * @api public
+ */
+
+function XHR (opts) {
+  Polling.call(this, opts);
+  this.requestTimeout = opts.requestTimeout;
+  this.extraHeaders = opts.extraHeaders;
+
+  if (typeof location !== 'undefined') {
+    var isSSL = 'https:' === location.protocol;
+    var port = location.port;
+
+    // some user agents have empty `location.port`
+    if (!port) {
+      port = isSSL ? 443 : 80;
+    }
+
+    this.xd = (typeof location !== 'undefined' && opts.hostname !== location.hostname) ||
+      port !== opts.port;
+    this.xs = opts.secure !== isSSL;
+  }
+}
+
+/**
+ * Inherits from Polling.
+ */
+
+inherit(XHR, Polling);
+
+/**
+ * XHR supports binary
+ */
+
+XHR.prototype.supportsBinary = true;
+
+/**
+ * Creates a request.
+ *
+ * @param {String} method
+ * @api private
+ */
+
+XHR.prototype.request = function (opts) {
+  opts = opts || {};
+  opts.uri = this.uri();
+  opts.xd = this.xd;
+  opts.xs = this.xs;
+  opts.agent = this.agent || false;
+  opts.supportsBinary = this.supportsBinary;
+  opts.enablesXDR = this.enablesXDR;
+  opts.withCredentials = this.withCredentials;
+
+  // SSL options for Node.js client
+  opts.pfx = this.pfx;
+  opts.key = this.key;
+  opts.passphrase = this.passphrase;
+  opts.cert = this.cert;
+  opts.ca = this.ca;
+  opts.ciphers = this.ciphers;
+  opts.rejectUnauthorized = this.rejectUnauthorized;
+  opts.requestTimeout = this.requestTimeout;
+
+  // other options for Node.js client
+  opts.extraHeaders = this.extraHeaders;
+
+  return new Request(opts);
+};
+
+/**
+ * Sends data.
+ *
+ * @param {String} data to send.
+ * @param {Function} called upon flush.
+ * @api private
+ */
+
+XHR.prototype.doWrite = function (data, fn) {
+  var isBinary = typeof data !== 'string' && data !== undefined;
+  var req = this.request({ method: 'POST', data: data, isBinary: isBinary });
+  var self = this;
+  req.on('success', fn);
+  req.on('error', function (err) {
+    self.onError('xhr post error', err);
+  });
+  this.sendXhr = req;
+};
+
+/**
+ * Starts a poll cycle.
+ *
+ * @api private
+ */
+
+XHR.prototype.doPoll = function () {
+  debug('xhr poll');
+  var req = this.request();
+  var self = this;
+  req.on('data', function (data) {
+    self.onData(data);
+  });
+  req.on('error', function (err) {
+    self.onError('xhr poll error', err);
+  });
+  this.pollXhr = req;
+};
+
+/**
+ * Request constructor
+ *
+ * @param {Object} options
+ * @api public
+ */
+
+function Request (opts) {
+  this.method = opts.method || 'GET';
+  this.uri = opts.uri;
+  this.xd = !!opts.xd;
+  this.xs = !!opts.xs;
+  this.async = false !== opts.async;
+  this.data = undefined !== opts.data ? opts.data : null;
+  this.agent = opts.agent;
+  this.isBinary = opts.isBinary;
+  this.supportsBinary = opts.supportsBinary;
+  this.enablesXDR = opts.enablesXDR;
+  this.withCredentials = opts.withCredentials;
+  this.requestTimeout = opts.requestTimeout;
+
+  // SSL options for Node.js client
+  this.pfx = opts.pfx;
+  this.key = opts.key;
+  this.passphrase = opts.passphrase;
+  this.cert = opts.cert;
+  this.ca = opts.ca;
+  this.ciphers = opts.ciphers;
+  this.rejectUnauthorized = opts.rejectUnauthorized;
+
+  // other options for Node.js client
+  this.extraHeaders = opts.extraHeaders;
+
+  this.create();
+}
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Request.prototype);
+
+/**
+ * Creates the XHR object and sends the request.
+ *
+ * @api private
+ */
+
+Request.prototype.create = function () {
+  var opts = { agent: this.agent, xdomain: this.xd, xscheme: this.xs, enablesXDR: this.enablesXDR };
+
+  // SSL options for Node.js client
+  opts.pfx = this.pfx;
+  opts.key = this.key;
+  opts.passphrase = this.passphrase;
+  opts.cert = this.cert;
+  opts.ca = this.ca;
+  opts.ciphers = this.ciphers;
+  opts.rejectUnauthorized = this.rejectUnauthorized;
+
+  var xhr = this.xhr = new XMLHttpRequest(opts);
+  var self = this;
+
+  try {
+    debug('xhr open %s: %s', this.method, this.uri);
+    xhr.open(this.method, this.uri, this.async);
+    try {
+      if (this.extraHeaders) {
+        xhr.setDisableHeaderCheck && xhr.setDisableHeaderCheck(true);
+        for (var i in this.extraHeaders) {
+          if (this.extraHeaders.hasOwnProperty(i)) {
+            xhr.setRequestHeader(i, this.extraHeaders[i]);
+          }
+        }
+      }
+    } catch (e) {}
+
+    if ('POST' === this.method) {
+      try {
+        if (this.isBinary) {
+          xhr.setRequestHeader('Content-type', 'application/octet-stream');
+        } else {
+          xhr.setRequestHeader('Content-type', 'text/plain;charset=UTF-8');
+        }
+      } catch (e) {}
+    }
+
+    try {
+      xhr.setRequestHeader('Accept', '*/*');
+    } catch (e) {}
+
+    // ie6 check
+    if ('withCredentials' in xhr) {
+      xhr.withCredentials = this.withCredentials;
+    }
+
+    if (this.requestTimeout) {
+      xhr.timeout = this.requestTimeout;
+    }
+
+    if (this.hasXDR()) {
+      xhr.onload = function () {
+        self.onLoad();
+      };
+      xhr.onerror = function () {
+        self.onError(xhr.responseText);
+      };
+    } else {
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 2) {
+          try {
+            var contentType = xhr.getResponseHeader('Content-Type');
+            if (self.supportsBinary && contentType === 'application/octet-stream' || contentType === 'application/octet-stream; charset=UTF-8') {
+              xhr.responseType = 'arraybuffer';
+            }
+          } catch (e) {}
+        }
+        if (4 !== xhr.readyState) return;
+        if (200 === xhr.status || 1223 === xhr.status) {
+          self.onLoad();
+        } else {
+          // make sure the `error` event handler that's user-set
+          // does not throw in the same tick and gets caught here
+          setTimeout(function () {
+            self.onError(typeof xhr.status === 'number' ? xhr.status : 0);
+          }, 0);
+        }
+      };
+    }
+
+    debug('xhr data %s', this.data);
+    xhr.send(this.data);
+  } catch (e) {
+    // Need to defer since .create() is called directly fhrom the constructor
+    // and thus the 'error' event can only be only bound *after* this exception
+    // occurs.  Therefore, also, we cannot throw here at all.
+    setTimeout(function () {
+      self.onError(e);
+    }, 0);
+    return;
+  }
+
+  if (typeof document !== 'undefined') {
+    this.index = Request.requestsCount++;
+    Request.requests[this.index] = this;
+  }
+};
+
+/**
+ * Called upon successful response.
+ *
+ * @api private
+ */
+
+Request.prototype.onSuccess = function () {
+  this.emit('success');
+  this.cleanup();
+};
+
+/**
+ * Called if we have data.
+ *
+ * @api private
+ */
+
+Request.prototype.onData = function (data) {
+  this.emit('data', data);
+  this.onSuccess();
+};
+
+/**
+ * Called upon error.
+ *
+ * @api private
+ */
+
+Request.prototype.onError = function (err) {
+  this.emit('error', err);
+  this.cleanup(true);
+};
+
+/**
+ * Cleans up house.
+ *
+ * @api private
+ */
+
+Request.prototype.cleanup = function (fromError) {
+  if ('undefined' === typeof this.xhr || null === this.xhr) {
+    return;
+  }
+  // xmlhttprequest
+  if (this.hasXDR()) {
+    this.xhr.onload = this.xhr.onerror = empty;
+  } else {
+    this.xhr.onreadystatechange = empty;
+  }
+
+  if (fromError) {
+    try {
+      this.xhr.abort();
+    } catch (e) {}
+  }
+
+  if (typeof document !== 'undefined') {
+    delete Request.requests[this.index];
+  }
+
+  this.xhr = null;
+};
+
+/**
+ * Called upon load.
+ *
+ * @api private
+ */
+
+Request.prototype.onLoad = function () {
+  var data;
+  try {
+    var contentType;
+    try {
+      contentType = this.xhr.getResponseHeader('Content-Type');
+    } catch (e) {}
+    if (contentType === 'application/octet-stream' || contentType === 'application/octet-stream; charset=UTF-8') {
+      data = this.xhr.response || this.xhr.responseText;
+    } else {
+      data = this.xhr.responseText;
+    }
+  } catch (e) {
+    this.onError(e);
+  }
+  if (null != data) {
+    this.onData(data);
+  }
+};
+
+/**
+ * Check if it has XDomainRequest.
+ *
+ * @api private
+ */
+
+Request.prototype.hasXDR = function () {
+  return typeof XDomainRequest !== 'undefined' && !this.xs && this.enablesXDR;
+};
+
+/**
+ * Aborts the request.
+ *
+ * @api public
+ */
+
+Request.prototype.abort = function () {
+  this.cleanup();
+};
+
+/**
+ * Aborts pending requests when unloading the window. This is needed to prevent
+ * memory leaks (e.g. when using IE) and to ensure that no spurious error is
+ * emitted.
+ */
+
+Request.requestsCount = 0;
+Request.requests = {};
+
+if (typeof document !== 'undefined') {
+  if (typeof attachEvent === 'function') {
+    attachEvent('onunload', unloadHandler);
+  } else if (typeof addEventListener === 'function') {
+    var terminationEvent = 'onpagehide' in globalThis ? 'pagehide' : 'unload';
+    addEventListener(terminationEvent, unloadHandler, false);
+  }
+}
+
+function unloadHandler () {
+  for (var i in Request.requests) {
+    if (Request.requests.hasOwnProperty(i)) {
+      Request.requests[i].abort();
+    }
+  }
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transports/polling.js":
+/*!*****************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transports/polling.js ***!
+  \*****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+var Transport = __webpack_require__(/*! ../transport */ "./node_modules/engine.io-client/lib/transport.js");
+var parseqs = __webpack_require__(/*! parseqs */ "./node_modules/parseqs/index.js");
+var parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+var inherit = __webpack_require__(/*! component-inherit */ "./node_modules/component-inherit/index.js");
+var yeast = __webpack_require__(/*! yeast */ "./node_modules/yeast/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('engine.io-client:polling');
+
+/**
+ * Module exports.
+ */
+
+module.exports = Polling;
+
+/**
+ * Is XHR2 supported?
+ */
+
+var hasXHR2 = (function () {
+  var XMLHttpRequest = __webpack_require__(/*! xmlhttprequest-ssl */ "./node_modules/engine.io-client/lib/xmlhttprequest.js");
+  var xhr = new XMLHttpRequest({ xdomain: false });
+  return null != xhr.responseType;
+})();
+
+/**
+ * Polling interface.
+ *
+ * @param {Object} opts
+ * @api private
+ */
+
+function Polling (opts) {
+  var forceBase64 = (opts && opts.forceBase64);
+  if (!hasXHR2 || forceBase64) {
+    this.supportsBinary = false;
+  }
+  Transport.call(this, opts);
+}
+
+/**
+ * Inherits from Transport.
+ */
+
+inherit(Polling, Transport);
+
+/**
+ * Transport name.
+ */
+
+Polling.prototype.name = 'polling';
+
+/**
+ * Opens the socket (triggers polling). We write a PING message to determine
+ * when the transport is open.
+ *
+ * @api private
+ */
+
+Polling.prototype.doOpen = function () {
+  this.poll();
+};
+
+/**
+ * Pauses polling.
+ *
+ * @param {Function} callback upon buffers are flushed and transport is paused
+ * @api private
+ */
+
+Polling.prototype.pause = function (onPause) {
+  var self = this;
+
+  this.readyState = 'pausing';
+
+  function pause () {
+    debug('paused');
+    self.readyState = 'paused';
+    onPause();
+  }
+
+  if (this.polling || !this.writable) {
+    var total = 0;
+
+    if (this.polling) {
+      debug('we are currently polling - waiting to pause');
+      total++;
+      this.once('pollComplete', function () {
+        debug('pre-pause polling complete');
+        --total || pause();
+      });
+    }
+
+    if (!this.writable) {
+      debug('we are currently writing - waiting to pause');
+      total++;
+      this.once('drain', function () {
+        debug('pre-pause writing complete');
+        --total || pause();
+      });
+    }
+  } else {
+    pause();
+  }
+};
+
+/**
+ * Starts polling cycle.
+ *
+ * @api public
+ */
+
+Polling.prototype.poll = function () {
+  debug('polling');
+  this.polling = true;
+  this.doPoll();
+  this.emit('poll');
+};
+
+/**
+ * Overloads onData to detect payloads.
+ *
+ * @api private
+ */
+
+Polling.prototype.onData = function (data) {
+  var self = this;
+  debug('polling got data %s', data);
+  var callback = function (packet, index, total) {
+    // if its the first message we consider the transport open
+    if ('opening' === self.readyState && packet.type === 'open') {
+      self.onOpen();
+    }
+
+    // if its a close packet, we close the ongoing requests
+    if ('close' === packet.type) {
+      self.onClose();
+      return false;
+    }
+
+    // otherwise bypass onData and handle the message
+    self.onPacket(packet);
+  };
+
+  // decode payload
+  parser.decodePayload(data, this.socket.binaryType, callback);
+
+  // if an event did not trigger closing
+  if ('closed' !== this.readyState) {
+    // if we got data we're not polling
+    this.polling = false;
+    this.emit('pollComplete');
+
+    if ('open' === this.readyState) {
+      this.poll();
+    } else {
+      debug('ignoring poll - transport state "%s"', this.readyState);
+    }
+  }
+};
+
+/**
+ * For polling, send a close packet.
+ *
+ * @api private
+ */
+
+Polling.prototype.doClose = function () {
+  var self = this;
+
+  function close () {
+    debug('writing close packet');
+    self.write([{ type: 'close' }]);
+  }
+
+  if ('open' === this.readyState) {
+    debug('transport open - closing');
+    close();
+  } else {
+    // in case we're trying to close while
+    // handshaking is in progress (GH-164)
+    debug('transport not open - deferring close');
+    this.once('open', close);
+  }
+};
+
+/**
+ * Writes a packets payload.
+ *
+ * @param {Array} data packets
+ * @param {Function} drain callback
+ * @api private
+ */
+
+Polling.prototype.write = function (packets) {
+  var self = this;
+  this.writable = false;
+  var callbackfn = function () {
+    self.writable = true;
+    self.emit('drain');
+  };
+
+  parser.encodePayload(packets, this.supportsBinary, function (data) {
+    self.doWrite(data, callbackfn);
+  });
+};
+
+/**
+ * Generates uri for connection.
+ *
+ * @api private
+ */
+
+Polling.prototype.uri = function () {
+  var query = this.query || {};
+  var schema = this.secure ? 'https' : 'http';
+  var port = '';
+
+  // cache busting is forced
+  if (false !== this.timestampRequests) {
+    query[this.timestampParam] = yeast();
+  }
+
+  if (!this.supportsBinary && !query.sid) {
+    query.b64 = 1;
+  }
+
+  query = parseqs.encode(query);
+
+  // avoid port if default for schema
+  if (this.port && (('https' === schema && Number(this.port) !== 443) ||
+     ('http' === schema && Number(this.port) !== 80))) {
+    port = ':' + this.port;
+  }
+
+  // prepend ? to query
+  if (query.length) {
+    query = '?' + query;
+  }
+
+  var ipv6 = this.hostname.indexOf(':') !== -1;
+  return schema + '://' + (ipv6 ? '[' + this.hostname + ']' : this.hostname) + port + this.path + query;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/transports/websocket.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/transports/websocket.js ***!
+  \*******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Buffer) {/**
+ * Module dependencies.
+ */
+
+var Transport = __webpack_require__(/*! ../transport */ "./node_modules/engine.io-client/lib/transport.js");
+var parser = __webpack_require__(/*! engine.io-parser */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js");
+var parseqs = __webpack_require__(/*! parseqs */ "./node_modules/parseqs/index.js");
+var inherit = __webpack_require__(/*! component-inherit */ "./node_modules/component-inherit/index.js");
+var yeast = __webpack_require__(/*! yeast */ "./node_modules/yeast/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('engine.io-client:websocket');
+
+var BrowserWebSocket, NodeWebSocket;
+
+if (typeof WebSocket !== 'undefined') {
+  BrowserWebSocket = WebSocket;
+} else if (typeof self !== 'undefined') {
+  BrowserWebSocket = self.WebSocket || self.MozWebSocket;
+}
+
+if (typeof window === 'undefined') {
+  try {
+    NodeWebSocket = __webpack_require__(/*! ws */ 1);
+  } catch (e) { }
+}
+
+/**
+ * Get either the `WebSocket` or `MozWebSocket` globals
+ * in the browser or try to resolve WebSocket-compatible
+ * interface exposed by `ws` for Node-like environment.
+ */
+
+var WebSocketImpl = BrowserWebSocket || NodeWebSocket;
+
+/**
+ * Module exports.
+ */
+
+module.exports = WS;
+
+/**
+ * WebSocket transport constructor.
+ *
+ * @api {Object} connection options
+ * @api public
+ */
+
+function WS (opts) {
+  var forceBase64 = (opts && opts.forceBase64);
+  if (forceBase64) {
+    this.supportsBinary = false;
+  }
+  this.perMessageDeflate = opts.perMessageDeflate;
+  this.usingBrowserWebSocket = BrowserWebSocket && !opts.forceNode;
+  this.protocols = opts.protocols;
+  if (!this.usingBrowserWebSocket) {
+    WebSocketImpl = NodeWebSocket;
+  }
+  Transport.call(this, opts);
+}
+
+/**
+ * Inherits from Transport.
+ */
+
+inherit(WS, Transport);
+
+/**
+ * Transport name.
+ *
+ * @api public
+ */
+
+WS.prototype.name = 'websocket';
+
+/*
+ * WebSockets support binary
+ */
+
+WS.prototype.supportsBinary = true;
+
+/**
+ * Opens socket.
+ *
+ * @api private
+ */
+
+WS.prototype.doOpen = function () {
+  if (!this.check()) {
+    // let probe timeout
+    return;
+  }
+
+  var uri = this.uri();
+  var protocols = this.protocols;
+
+  var opts = {};
+
+  if (!this.isReactNative) {
+    opts.agent = this.agent;
+    opts.perMessageDeflate = this.perMessageDeflate;
+
+    // SSL options for Node.js client
+    opts.pfx = this.pfx;
+    opts.key = this.key;
+    opts.passphrase = this.passphrase;
+    opts.cert = this.cert;
+    opts.ca = this.ca;
+    opts.ciphers = this.ciphers;
+    opts.rejectUnauthorized = this.rejectUnauthorized;
+  }
+
+  if (this.extraHeaders) {
+    opts.headers = this.extraHeaders;
+  }
+  if (this.localAddress) {
+    opts.localAddress = this.localAddress;
+  }
+
+  try {
+    this.ws =
+      this.usingBrowserWebSocket && !this.isReactNative
+        ? protocols
+          ? new WebSocketImpl(uri, protocols)
+          : new WebSocketImpl(uri)
+        : new WebSocketImpl(uri, protocols, opts);
+  } catch (err) {
+    return this.emit('error', err);
+  }
+
+  if (this.ws.binaryType === undefined) {
+    this.supportsBinary = false;
+  }
+
+  if (this.ws.supports && this.ws.supports.binary) {
+    this.supportsBinary = true;
+    this.ws.binaryType = 'nodebuffer';
+  } else {
+    this.ws.binaryType = 'arraybuffer';
+  }
+
+  this.addEventListeners();
+};
+
+/**
+ * Adds event listeners to the socket
+ *
+ * @api private
+ */
+
+WS.prototype.addEventListeners = function () {
+  var self = this;
+
+  this.ws.onopen = function () {
+    self.onOpen();
+  };
+  this.ws.onclose = function () {
+    self.onClose();
+  };
+  this.ws.onmessage = function (ev) {
+    self.onData(ev.data);
+  };
+  this.ws.onerror = function (e) {
+    self.onError('websocket error', e);
+  };
+};
+
+/**
+ * Writes data to socket.
+ *
+ * @param {Array} array of packets.
+ * @api private
+ */
+
+WS.prototype.write = function (packets) {
+  var self = this;
+  this.writable = false;
+
+  // encodePacket efficient as it uses WS framing
+  // no need for encodePayload
+  var total = packets.length;
+  for (var i = 0, l = total; i < l; i++) {
+    (function (packet) {
+      parser.encodePacket(packet, self.supportsBinary, function (data) {
+        if (!self.usingBrowserWebSocket) {
+          // always create a new object (GH-437)
+          var opts = {};
+          if (packet.options) {
+            opts.compress = packet.options.compress;
+          }
+
+          if (self.perMessageDeflate) {
+            var len = 'string' === typeof data ? Buffer.byteLength(data) : data.length;
+            if (len < self.perMessageDeflate.threshold) {
+              opts.compress = false;
+            }
+          }
+        }
+
+        // Sometimes the websocket has already been closed but the browser didn't
+        // have a chance of informing us about it yet, in that case send will
+        // throw an error
+        try {
+          if (self.usingBrowserWebSocket) {
+            // TypeError is thrown when passing the second argument on Safari
+            self.ws.send(data);
+          } else {
+            self.ws.send(data, opts);
+          }
+        } catch (e) {
+          debug('websocket closed before onclose event');
+        }
+
+        --total || done();
+      });
+    })(packets[i]);
+  }
+
+  function done () {
+    self.emit('flush');
+
+    // fake drain
+    // defer to next tick to allow Socket to clear writeBuffer
+    setTimeout(function () {
+      self.writable = true;
+      self.emit('drain');
+    }, 0);
+  }
+};
+
+/**
+ * Called upon close
+ *
+ * @api private
+ */
+
+WS.prototype.onClose = function () {
+  Transport.prototype.onClose.call(this);
+};
+
+/**
+ * Closes socket.
+ *
+ * @api private
+ */
+
+WS.prototype.doClose = function () {
+  if (typeof this.ws !== 'undefined') {
+    this.ws.close();
+  }
+};
+
+/**
+ * Generates uri for connection.
+ *
+ * @api private
+ */
+
+WS.prototype.uri = function () {
+  var query = this.query || {};
+  var schema = this.secure ? 'wss' : 'ws';
+  var port = '';
+
+  // avoid port if default for schema
+  if (this.port && (('wss' === schema && Number(this.port) !== 443) ||
+    ('ws' === schema && Number(this.port) !== 80))) {
+    port = ':' + this.port;
+  }
+
+  // append timestamp to URI
+  if (this.timestampRequests) {
+    query[this.timestampParam] = yeast();
+  }
+
+  // communicate binary support capabilities
+  if (!this.supportsBinary) {
+    query.b64 = 1;
+  }
+
+  query = parseqs.encode(query);
+
+  // prepend ? to query
+  if (query.length) {
+    query = '?' + query;
+  }
+
+  var ipv6 = this.hostname.indexOf(':') !== -1;
+  return schema + '://' + (ipv6 ? '[' + this.hostname + ']' : this.hostname) + port + this.path + query;
+};
+
+/**
+ * Feature detection for WebSocket.
+ *
+ * @return {Boolean} whether this transport is available.
+ * @api public
+ */
+
+WS.prototype.check = function () {
+  return !!WebSocketImpl && !('__initialize' in WebSocketImpl && this.name === WS.prototype.name);
+};
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../buffer/index.js */ "./node_modules/buffer/index.js").Buffer))
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/lib/xmlhttprequest.js":
+/*!*************************************************************!*\
+  !*** ./node_modules/engine.io-client/lib/xmlhttprequest.js ***!
+  \*************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+// browser shim for xmlhttprequest module
+
+var hasCORS = __webpack_require__(/*! has-cors */ "./node_modules/has-cors/index.js");
+var globalThis = __webpack_require__(/*! ./globalThis */ "./node_modules/engine.io-client/lib/globalThis.browser.js");
+
+module.exports = function (opts) {
+  var xdomain = opts.xdomain;
+
+  // scheme must be same when usign XDomainRequest
+  // http://blogs.msdn.com/b/ieinternals/archive/2010/05/13/xdomainrequest-restrictions-limitations-and-workarounds.aspx
+  var xscheme = opts.xscheme;
+
+  // XDomainRequest has a flow of not sending cookie, therefore it should be disabled as a default.
+  // https://github.com/Automattic/engine.io-client/pull/217
+  var enablesXDR = opts.enablesXDR;
+
+  // XMLHttpRequest can be disabled on IE
+  try {
+    if ('undefined' !== typeof XMLHttpRequest && (!xdomain || hasCORS)) {
+      return new XMLHttpRequest();
+    }
+  } catch (e) { }
+
+  // Use XDomainRequest for IE8 if enablesXDR is true
+  // because loading bar keeps flashing when using jsonp-polling
+  // https://github.com/yujiosaka/socke.io-ie8-loading-example
+  try {
+    if ('undefined' !== typeof XDomainRequest && !xscheme && enablesXDR) {
+      return new XDomainRequest();
+    }
+  } catch (e) { }
+
+  if (!xdomain) {
+    try {
+      return new globalThis[['Active'].concat('Object').join('X')]('Microsoft.XMLHTTP');
+    } catch (e) { }
+  }
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js":
+/*!************************************************************************************!*\
+  !*** ./node_modules/engine.io-client/node_modules/engine.io-parser/lib/browser.js ***!
+  \************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+var keys = __webpack_require__(/*! ./keys */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/keys.js");
+var hasBinary = __webpack_require__(/*! has-binary2 */ "./node_modules/has-binary2/index.js");
+var sliceBuffer = __webpack_require__(/*! arraybuffer.slice */ "./node_modules/arraybuffer.slice/index.js");
+var after = __webpack_require__(/*! after */ "./node_modules/after/index.js");
+var utf8 = __webpack_require__(/*! ./utf8 */ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/utf8.js");
+
+var base64encoder;
+if (typeof ArrayBuffer !== 'undefined') {
+  base64encoder = __webpack_require__(/*! base64-arraybuffer */ "./node_modules/base64-arraybuffer/lib/base64-arraybuffer.js");
+}
+
+/**
+ * Check if we are running an android browser. That requires us to use
+ * ArrayBuffer with polling transports...
+ *
+ * http://ghinda.net/jpeg-blob-ajax-android/
+ */
+
+var isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
+/**
+ * Check if we are running in PhantomJS.
+ * Uploading a Blob with PhantomJS does not work correctly, as reported here:
+ * https://github.com/ariya/phantomjs/issues/11395
+ * @type boolean
+ */
+var isPhantomJS = typeof navigator !== 'undefined' && /PhantomJS/i.test(navigator.userAgent);
+
+/**
+ * When true, avoids using Blobs to encode payloads.
+ * @type boolean
+ */
+var dontSendBlobs = isAndroid || isPhantomJS;
+
+/**
+ * Current protocol version.
+ */
+
+exports.protocol = 3;
+
+/**
+ * Packet types.
+ */
+
+var packets = exports.packets = {
+    open:     0    // non-ws
+  , close:    1    // non-ws
+  , ping:     2
+  , pong:     3
+  , message:  4
+  , upgrade:  5
+  , noop:     6
+};
+
+var packetslist = keys(packets);
+
+/**
+ * Premade error packet.
+ */
+
+var err = { type: 'error', data: 'parser error' };
+
+/**
+ * Create a blob api even for blob builder when vendor prefixes exist
+ */
+
+var Blob = __webpack_require__(/*! blob */ "./node_modules/blob/index.js");
+
+/**
+ * Encodes a packet.
+ *
+ *     <packet type id> [ <data> ]
+ *
+ * Example:
+ *
+ *     5hello world
+ *     3
+ *     4
+ *
+ * Binary is encoded in an identical principle
+ *
+ * @api private
+ */
+
+exports.encodePacket = function (packet, supportsBinary, utf8encode, callback) {
+  if (typeof supportsBinary === 'function') {
+    callback = supportsBinary;
+    supportsBinary = false;
+  }
+
+  if (typeof utf8encode === 'function') {
+    callback = utf8encode;
+    utf8encode = null;
+  }
+
+  var data = (packet.data === undefined)
+    ? undefined
+    : packet.data.buffer || packet.data;
+
+  if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) {
+    return encodeArrayBuffer(packet, supportsBinary, callback);
+  } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    return encodeBlob(packet, supportsBinary, callback);
+  }
+
+  // might be an object with { base64: true, data: dataAsBase64String }
+  if (data && data.base64) {
+    return encodeBase64Object(packet, callback);
+  }
+
+  // Sending data as a utf-8 string
+  var encoded = packets[packet.type];
+
+  // data fragment is optional
+  if (undefined !== packet.data) {
+    encoded += utf8encode ? utf8.encode(String(packet.data), { strict: false }) : String(packet.data);
+  }
+
+  return callback('' + encoded);
+
+};
+
+function encodeBase64Object(packet, callback) {
+  // packet data is an object { base64: true, data: dataAsBase64String }
+  var message = 'b' + exports.packets[packet.type] + packet.data.data;
+  return callback(message);
+}
+
+/**
+ * Encode packet helpers for binary types
+ */
+
+function encodeArrayBuffer(packet, supportsBinary, callback) {
+  if (!supportsBinary) {
+    return exports.encodeBase64Packet(packet, callback);
+  }
+
+  var data = packet.data;
+  var contentArray = new Uint8Array(data);
+  var resultBuffer = new Uint8Array(1 + data.byteLength);
+
+  resultBuffer[0] = packets[packet.type];
+  for (var i = 0; i < contentArray.length; i++) {
+    resultBuffer[i+1] = contentArray[i];
+  }
+
+  return callback(resultBuffer.buffer);
+}
+
+function encodeBlobAsArrayBuffer(packet, supportsBinary, callback) {
+  if (!supportsBinary) {
+    return exports.encodeBase64Packet(packet, callback);
+  }
+
+  var fr = new FileReader();
+  fr.onload = function() {
+    exports.encodePacket({ type: packet.type, data: fr.result }, supportsBinary, true, callback);
+  };
+  return fr.readAsArrayBuffer(packet.data);
+}
+
+function encodeBlob(packet, supportsBinary, callback) {
+  if (!supportsBinary) {
+    return exports.encodeBase64Packet(packet, callback);
+  }
+
+  if (dontSendBlobs) {
+    return encodeBlobAsArrayBuffer(packet, supportsBinary, callback);
+  }
+
+  var length = new Uint8Array(1);
+  length[0] = packets[packet.type];
+  var blob = new Blob([length.buffer, packet.data]);
+
+  return callback(blob);
+}
+
+/**
+ * Encodes a packet with binary data in a base64 string
+ *
+ * @param {Object} packet, has `type` and `data`
+ * @return {String} base64 encoded message
+ */
+
+exports.encodeBase64Packet = function(packet, callback) {
+  var message = 'b' + exports.packets[packet.type];
+  if (typeof Blob !== 'undefined' && packet.data instanceof Blob) {
+    var fr = new FileReader();
+    fr.onload = function() {
+      var b64 = fr.result.split(',')[1];
+      callback(message + b64);
+    };
+    return fr.readAsDataURL(packet.data);
+  }
+
+  var b64data;
+  try {
+    b64data = String.fromCharCode.apply(null, new Uint8Array(packet.data));
+  } catch (e) {
+    // iPhone Safari doesn't let you apply with typed arrays
+    var typed = new Uint8Array(packet.data);
+    var basic = new Array(typed.length);
+    for (var i = 0; i < typed.length; i++) {
+      basic[i] = typed[i];
+    }
+    b64data = String.fromCharCode.apply(null, basic);
+  }
+  message += btoa(b64data);
+  return callback(message);
+};
+
+/**
+ * Decodes a packet. Changes format to Blob if requested.
+ *
+ * @return {Object} with `type` and `data` (if any)
+ * @api private
+ */
+
+exports.decodePacket = function (data, binaryType, utf8decode) {
+  if (data === undefined) {
+    return err;
+  }
+  // String data
+  if (typeof data === 'string') {
+    if (data.charAt(0) === 'b') {
+      return exports.decodeBase64Packet(data.substr(1), binaryType);
+    }
+
+    if (utf8decode) {
+      data = tryDecode(data);
+      if (data === false) {
+        return err;
+      }
+    }
+    var type = data.charAt(0);
+
+    if (Number(type) != type || !packetslist[type]) {
+      return err;
+    }
+
+    if (data.length > 1) {
+      return { type: packetslist[type], data: data.substring(1) };
+    } else {
+      return { type: packetslist[type] };
+    }
+  }
+
+  var asArray = new Uint8Array(data);
+  var type = asArray[0];
+  var rest = sliceBuffer(data, 1);
+  if (Blob && binaryType === 'blob') {
+    rest = new Blob([rest]);
+  }
+  return { type: packetslist[type], data: rest };
+};
+
+function tryDecode(data) {
+  try {
+    data = utf8.decode(data, { strict: false });
+  } catch (e) {
+    return false;
+  }
+  return data;
+}
+
+/**
+ * Decodes a packet encoded in a base64 string
+ *
+ * @param {String} base64 encoded message
+ * @return {Object} with `type` and `data` (if any)
+ */
+
+exports.decodeBase64Packet = function(msg, binaryType) {
+  var type = packetslist[msg.charAt(0)];
+  if (!base64encoder) {
+    return { type: type, data: { base64: true, data: msg.substr(1) } };
+  }
+
+  var data = base64encoder.decode(msg.substr(1));
+
+  if (binaryType === 'blob' && Blob) {
+    data = new Blob([data]);
+  }
+
+  return { type: type, data: data };
+};
+
+/**
+ * Encodes multiple messages (payload).
+ *
+ *     <length>:data
+ *
+ * Example:
+ *
+ *     11:hello world2:hi
+ *
+ * If any contents are binary, they will be encoded as base64 strings. Base64
+ * encoded strings are marked with a b before the length specifier
+ *
+ * @param {Array} packets
+ * @api private
+ */
+
+exports.encodePayload = function (packets, supportsBinary, callback) {
+  if (typeof supportsBinary === 'function') {
+    callback = supportsBinary;
+    supportsBinary = null;
+  }
+
+  var isBinary = hasBinary(packets);
+
+  if (supportsBinary && isBinary) {
+    if (Blob && !dontSendBlobs) {
+      return exports.encodePayloadAsBlob(packets, callback);
+    }
+
+    return exports.encodePayloadAsArrayBuffer(packets, callback);
+  }
+
+  if (!packets.length) {
+    return callback('0:');
+  }
+
+  function setLengthHeader(message) {
+    return message.length + ':' + message;
+  }
+
+  function encodeOne(packet, doneCallback) {
+    exports.encodePacket(packet, !isBinary ? false : supportsBinary, false, function(message) {
+      doneCallback(null, setLengthHeader(message));
+    });
+  }
+
+  map(packets, encodeOne, function(err, results) {
+    return callback(results.join(''));
+  });
+};
+
+/**
+ * Async array map using after
+ */
+
+function map(ary, each, done) {
+  var result = new Array(ary.length);
+  var next = after(ary.length, done);
+
+  var eachWithIndex = function(i, el, cb) {
+    each(el, function(error, msg) {
+      result[i] = msg;
+      cb(error, result);
+    });
+  };
+
+  for (var i = 0; i < ary.length; i++) {
+    eachWithIndex(i, ary[i], next);
+  }
+}
+
+/*
+ * Decodes data when a payload is maybe expected. Possible binary contents are
+ * decoded from their base64 representation
+ *
+ * @param {String} data, callback method
+ * @api public
+ */
+
+exports.decodePayload = function (data, binaryType, callback) {
+  if (typeof data !== 'string') {
+    return exports.decodePayloadAsBinary(data, binaryType, callback);
+  }
+
+  if (typeof binaryType === 'function') {
+    callback = binaryType;
+    binaryType = null;
+  }
+
+  var packet;
+  if (data === '') {
+    // parser error - ignoring payload
+    return callback(err, 0, 1);
+  }
+
+  var length = '', n, msg;
+
+  for (var i = 0, l = data.length; i < l; i++) {
+    var chr = data.charAt(i);
+
+    if (chr !== ':') {
+      length += chr;
+      continue;
+    }
+
+    if (length === '' || (length != (n = Number(length)))) {
+      // parser error - ignoring payload
+      return callback(err, 0, 1);
+    }
+
+    msg = data.substr(i + 1, n);
+
+    if (length != msg.length) {
+      // parser error - ignoring payload
+      return callback(err, 0, 1);
+    }
+
+    if (msg.length) {
+      packet = exports.decodePacket(msg, binaryType, false);
+
+      if (err.type === packet.type && err.data === packet.data) {
+        // parser error in individual packet - ignoring payload
+        return callback(err, 0, 1);
+      }
+
+      var ret = callback(packet, i + n, l);
+      if (false === ret) return;
+    }
+
+    // advance cursor
+    i += n;
+    length = '';
+  }
+
+  if (length !== '') {
+    // parser error - ignoring payload
+    return callback(err, 0, 1);
+  }
+
+};
+
+/**
+ * Encodes multiple messages (payload) as binary.
+ *
+ * <1 = binary, 0 = string><number from 0-9><number from 0-9>[...]<number
+ * 255><data>
+ *
+ * Example:
+ * 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
+ *
+ * @param {Array} packets
+ * @return {ArrayBuffer} encoded payload
+ * @api private
+ */
+
+exports.encodePayloadAsArrayBuffer = function(packets, callback) {
+  if (!packets.length) {
+    return callback(new ArrayBuffer(0));
+  }
+
+  function encodeOne(packet, doneCallback) {
+    exports.encodePacket(packet, true, true, function(data) {
+      return doneCallback(null, data);
+    });
+  }
+
+  map(packets, encodeOne, function(err, encodedPackets) {
+    var totalLength = encodedPackets.reduce(function(acc, p) {
+      var len;
+      if (typeof p === 'string'){
+        len = p.length;
+      } else {
+        len = p.byteLength;
+      }
+      return acc + len.toString().length + len + 2; // string/binary identifier + separator = 2
+    }, 0);
+
+    var resultArray = new Uint8Array(totalLength);
+
+    var bufferIndex = 0;
+    encodedPackets.forEach(function(p) {
+      var isString = typeof p === 'string';
+      var ab = p;
+      if (isString) {
+        var view = new Uint8Array(p.length);
+        for (var i = 0; i < p.length; i++) {
+          view[i] = p.charCodeAt(i);
+        }
+        ab = view.buffer;
+      }
+
+      if (isString) { // not true binary
+        resultArray[bufferIndex++] = 0;
+      } else { // true binary
+        resultArray[bufferIndex++] = 1;
+      }
+
+      var lenStr = ab.byteLength.toString();
+      for (var i = 0; i < lenStr.length; i++) {
+        resultArray[bufferIndex++] = parseInt(lenStr[i]);
+      }
+      resultArray[bufferIndex++] = 255;
+
+      var view = new Uint8Array(ab);
+      for (var i = 0; i < view.length; i++) {
+        resultArray[bufferIndex++] = view[i];
+      }
+    });
+
+    return callback(resultArray.buffer);
+  });
+};
+
+/**
+ * Encode as Blob
+ */
+
+exports.encodePayloadAsBlob = function(packets, callback) {
+  function encodeOne(packet, doneCallback) {
+    exports.encodePacket(packet, true, true, function(encoded) {
+      var binaryIdentifier = new Uint8Array(1);
+      binaryIdentifier[0] = 1;
+      if (typeof encoded === 'string') {
+        var view = new Uint8Array(encoded.length);
+        for (var i = 0; i < encoded.length; i++) {
+          view[i] = encoded.charCodeAt(i);
+        }
+        encoded = view.buffer;
+        binaryIdentifier[0] = 0;
+      }
+
+      var len = (encoded instanceof ArrayBuffer)
+        ? encoded.byteLength
+        : encoded.size;
+
+      var lenStr = len.toString();
+      var lengthAry = new Uint8Array(lenStr.length + 1);
+      for (var i = 0; i < lenStr.length; i++) {
+        lengthAry[i] = parseInt(lenStr[i]);
+      }
+      lengthAry[lenStr.length] = 255;
+
+      if (Blob) {
+        var blob = new Blob([binaryIdentifier.buffer, lengthAry.buffer, encoded]);
+        doneCallback(null, blob);
+      }
+    });
+  }
+
+  map(packets, encodeOne, function(err, results) {
+    return callback(new Blob(results));
+  });
+};
+
+/*
+ * Decodes data when a payload is maybe expected. Strings are decoded by
+ * interpreting each byte as a key code for entries marked to start with 0. See
+ * description of encodePayloadAsBinary
+ *
+ * @param {ArrayBuffer} data, callback method
+ * @api public
+ */
+
+exports.decodePayloadAsBinary = function (data, binaryType, callback) {
+  if (typeof binaryType === 'function') {
+    callback = binaryType;
+    binaryType = null;
+  }
+
+  var bufferTail = data;
+  var buffers = [];
+
+  while (bufferTail.byteLength > 0) {
+    var tailArray = new Uint8Array(bufferTail);
+    var isString = tailArray[0] === 0;
+    var msgLength = '';
+
+    for (var i = 1; ; i++) {
+      if (tailArray[i] === 255) break;
+
+      // 310 = char length of Number.MAX_VALUE
+      if (msgLength.length > 310) {
+        return callback(err, 0, 1);
+      }
+
+      msgLength += tailArray[i];
+    }
+
+    bufferTail = sliceBuffer(bufferTail, 2 + msgLength.length);
+    msgLength = parseInt(msgLength);
+
+    var msg = sliceBuffer(bufferTail, 0, msgLength);
+    if (isString) {
+      try {
+        msg = String.fromCharCode.apply(null, new Uint8Array(msg));
+      } catch (e) {
+        // iPhone Safari doesn't let you apply to typed arrays
+        var typed = new Uint8Array(msg);
+        msg = '';
+        for (var i = 0; i < typed.length; i++) {
+          msg += String.fromCharCode(typed[i]);
+        }
+      }
+    }
+
+    buffers.push(msg);
+    bufferTail = sliceBuffer(bufferTail, msgLength);
+  }
+
+  var total = buffers.length;
+  buffers.forEach(function(buffer, i) {
+    callback(exports.decodePacket(buffer, binaryType, true), i, total);
+  });
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/keys.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/engine.io-client/node_modules/engine.io-parser/lib/keys.js ***!
+  \*********************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+/**
+ * Gets the keys for an object.
+ *
+ * @return {Array} keys
+ * @api private
+ */
+
+module.exports = Object.keys || function keys (obj){
+  var arr = [];
+  var has = Object.prototype.hasOwnProperty;
+
+  for (var i in obj) {
+    if (has.call(obj, i)) {
+      arr.push(i);
+    }
+  }
+  return arr;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/engine.io-client/node_modules/engine.io-parser/lib/utf8.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/engine.io-client/node_modules/engine.io-parser/lib/utf8.js ***!
+  \*********************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/*! https://mths.be/utf8js v2.1.2 by @mathias */
+
+var stringFromCharCode = String.fromCharCode;
+
+// Taken from https://mths.be/punycode
+function ucs2decode(string) {
+	var output = [];
+	var counter = 0;
+	var length = string.length;
+	var value;
+	var extra;
+	while (counter < length) {
+		value = string.charCodeAt(counter++);
+		if (value >= 0xD800 && value <= 0xDBFF && counter < length) {
+			// high surrogate, and there is a next character
+			extra = string.charCodeAt(counter++);
+			if ((extra & 0xFC00) == 0xDC00) { // low surrogate
+				output.push(((value & 0x3FF) << 10) + (extra & 0x3FF) + 0x10000);
+			} else {
+				// unmatched surrogate; only append this code unit, in case the next
+				// code unit is the high surrogate of a surrogate pair
+				output.push(value);
+				counter--;
+			}
+		} else {
+			output.push(value);
+		}
+	}
+	return output;
+}
+
+// Taken from https://mths.be/punycode
+function ucs2encode(array) {
+	var length = array.length;
+	var index = -1;
+	var value;
+	var output = '';
+	while (++index < length) {
+		value = array[index];
+		if (value > 0xFFFF) {
+			value -= 0x10000;
+			output += stringFromCharCode(value >>> 10 & 0x3FF | 0xD800);
+			value = 0xDC00 | value & 0x3FF;
+		}
+		output += stringFromCharCode(value);
+	}
+	return output;
+}
+
+function checkScalarValue(codePoint, strict) {
+	if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+		if (strict) {
+			throw Error(
+				'Lone surrogate U+' + codePoint.toString(16).toUpperCase() +
+				' is not a scalar value'
+			);
+		}
+		return false;
+	}
+	return true;
+}
+/*--------------------------------------------------------------------------*/
+
+function createByte(codePoint, shift) {
+	return stringFromCharCode(((codePoint >> shift) & 0x3F) | 0x80);
+}
+
+function encodeCodePoint(codePoint, strict) {
+	if ((codePoint & 0xFFFFFF80) == 0) { // 1-byte sequence
+		return stringFromCharCode(codePoint);
+	}
+	var symbol = '';
+	if ((codePoint & 0xFFFFF800) == 0) { // 2-byte sequence
+		symbol = stringFromCharCode(((codePoint >> 6) & 0x1F) | 0xC0);
+	}
+	else if ((codePoint & 0xFFFF0000) == 0) { // 3-byte sequence
+		if (!checkScalarValue(codePoint, strict)) {
+			codePoint = 0xFFFD;
+		}
+		symbol = stringFromCharCode(((codePoint >> 12) & 0x0F) | 0xE0);
+		symbol += createByte(codePoint, 6);
+	}
+	else if ((codePoint & 0xFFE00000) == 0) { // 4-byte sequence
+		symbol = stringFromCharCode(((codePoint >> 18) & 0x07) | 0xF0);
+		symbol += createByte(codePoint, 12);
+		symbol += createByte(codePoint, 6);
+	}
+	symbol += stringFromCharCode((codePoint & 0x3F) | 0x80);
+	return symbol;
+}
+
+function utf8encode(string, opts) {
+	opts = opts || {};
+	var strict = false !== opts.strict;
+
+	var codePoints = ucs2decode(string);
+	var length = codePoints.length;
+	var index = -1;
+	var codePoint;
+	var byteString = '';
+	while (++index < length) {
+		codePoint = codePoints[index];
+		byteString += encodeCodePoint(codePoint, strict);
+	}
+	return byteString;
+}
+
+/*--------------------------------------------------------------------------*/
+
+function readContinuationByte() {
+	if (byteIndex >= byteCount) {
+		throw Error('Invalid byte index');
+	}
+
+	var continuationByte = byteArray[byteIndex] & 0xFF;
+	byteIndex++;
+
+	if ((continuationByte & 0xC0) == 0x80) {
+		return continuationByte & 0x3F;
+	}
+
+	// If we end up here, it’s not a continuation byte
+	throw Error('Invalid continuation byte');
+}
+
+function decodeSymbol(strict) {
+	var byte1;
+	var byte2;
+	var byte3;
+	var byte4;
+	var codePoint;
+
+	if (byteIndex > byteCount) {
+		throw Error('Invalid byte index');
+	}
+
+	if (byteIndex == byteCount) {
+		return false;
+	}
+
+	// Read first byte
+	byte1 = byteArray[byteIndex] & 0xFF;
+	byteIndex++;
+
+	// 1-byte sequence (no continuation bytes)
+	if ((byte1 & 0x80) == 0) {
+		return byte1;
+	}
+
+	// 2-byte sequence
+	if ((byte1 & 0xE0) == 0xC0) {
+		byte2 = readContinuationByte();
+		codePoint = ((byte1 & 0x1F) << 6) | byte2;
+		if (codePoint >= 0x80) {
+			return codePoint;
+		} else {
+			throw Error('Invalid continuation byte');
+		}
+	}
+
+	// 3-byte sequence (may include unpaired surrogates)
+	if ((byte1 & 0xF0) == 0xE0) {
+		byte2 = readContinuationByte();
+		byte3 = readContinuationByte();
+		codePoint = ((byte1 & 0x0F) << 12) | (byte2 << 6) | byte3;
+		if (codePoint >= 0x0800) {
+			return checkScalarValue(codePoint, strict) ? codePoint : 0xFFFD;
+		} else {
+			throw Error('Invalid continuation byte');
+		}
+	}
+
+	// 4-byte sequence
+	if ((byte1 & 0xF8) == 0xF0) {
+		byte2 = readContinuationByte();
+		byte3 = readContinuationByte();
+		byte4 = readContinuationByte();
+		codePoint = ((byte1 & 0x07) << 0x12) | (byte2 << 0x0C) |
+			(byte3 << 0x06) | byte4;
+		if (codePoint >= 0x010000 && codePoint <= 0x10FFFF) {
+			return codePoint;
+		}
+	}
+
+	throw Error('Invalid UTF-8 detected');
+}
+
+var byteArray;
+var byteCount;
+var byteIndex;
+function utf8decode(byteString, opts) {
+	opts = opts || {};
+	var strict = false !== opts.strict;
+
+	byteArray = ucs2decode(byteString);
+	byteCount = byteArray.length;
+	byteIndex = 0;
+	var codePoints = [];
+	var tmp;
+	while ((tmp = decodeSymbol(strict)) !== false) {
+		codePoints.push(tmp);
+	}
+	return ucs2encode(codePoints);
+}
+
+module.exports = {
+	version: '2.1.2',
+	encode: utf8encode,
+	decode: utf8decode
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/has-binary2/index.js":
+/*!*******************************************!*\
+  !*** ./node_modules/has-binary2/index.js ***!
+  \*******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Buffer) {/* global Blob File */
+
+/*
+ * Module requirements.
+ */
+
+var isArray = __webpack_require__(/*! isarray */ "./node_modules/has-binary2/node_modules/isarray/index.js");
+
+var toString = Object.prototype.toString;
+var withNativeBlob = typeof Blob === 'function' ||
+                        typeof Blob !== 'undefined' && toString.call(Blob) === '[object BlobConstructor]';
+var withNativeFile = typeof File === 'function' ||
+                        typeof File !== 'undefined' && toString.call(File) === '[object FileConstructor]';
+
+/**
+ * Module exports.
+ */
+
+module.exports = hasBinary;
+
+/**
+ * Checks for binary data.
+ *
+ * Supports Buffer, ArrayBuffer, Blob and File.
+ *
+ * @param {Object} anything
+ * @api public
+ */
+
+function hasBinary (obj) {
+  if (!obj || typeof obj !== 'object') {
+    return false;
+  }
+
+  if (isArray(obj)) {
+    for (var i = 0, l = obj.length; i < l; i++) {
+      if (hasBinary(obj[i])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if ((typeof Buffer === 'function' && Buffer.isBuffer && Buffer.isBuffer(obj)) ||
+    (typeof ArrayBuffer === 'function' && obj instanceof ArrayBuffer) ||
+    (withNativeBlob && obj instanceof Blob) ||
+    (withNativeFile && obj instanceof File)
+  ) {
+    return true;
+  }
+
+  // see: https://github.com/Automattic/has-binary/pull/4
+  if (obj.toJSON && typeof obj.toJSON === 'function' && arguments.length === 1) {
+    return hasBinary(obj.toJSON(), true);
+  }
+
+  for (var key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key) && hasBinary(obj[key])) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../buffer/index.js */ "./node_modules/buffer/index.js").Buffer))
+
+/***/ }),
+
+/***/ "./node_modules/has-binary2/node_modules/isarray/index.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/has-binary2/node_modules/isarray/index.js ***!
+  \****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+var toString = {}.toString;
+
+module.exports = Array.isArray || function (arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/has-cors/index.js":
+/*!****************************************!*\
+  !*** ./node_modules/has-cors/index.js ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+/**
+ * Module exports.
+ *
+ * Logic borrowed from Modernizr:
+ *
+ *   - https://github.com/Modernizr/Modernizr/blob/master/feature-detects/cors.js
+ */
+
+try {
+  module.exports = typeof XMLHttpRequest !== 'undefined' &&
+    'withCredentials' in new XMLHttpRequest();
+} catch (err) {
+  // if XMLHttp support is disabled in IE then it will throw
+  // when trying to create
+  module.exports = false;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/ieee754/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/ieee754/index.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+exports.read = function (buffer, offset, isLE, mLen, nBytes) {
+  var e, m
+  var eLen = (nBytes * 8) - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var nBits = -7
+  var i = isLE ? (nBytes - 1) : 0
+  var d = isLE ? -1 : 1
+  var s = buffer[offset + i]
+
+  i += d
+
+  e = s & ((1 << (-nBits)) - 1)
+  s >>= (-nBits)
+  nBits += eLen
+  for (; nBits > 0; e = (e * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+  m = e & ((1 << (-nBits)) - 1)
+  e >>= (-nBits)
+  nBits += mLen
+  for (; nBits > 0; m = (m * 256) + buffer[offset + i], i += d, nBits -= 8) {}
+
+  if (e === 0) {
+    e = 1 - eBias
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity)
+  } else {
+    m = m + Math.pow(2, mLen)
+    e = e - eBias
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen)
+}
+
+exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
+  var e, m, c
+  var eLen = (nBytes * 8) - mLen - 1
+  var eMax = (1 << eLen) - 1
+  var eBias = eMax >> 1
+  var rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0)
+  var i = isLE ? 0 : (nBytes - 1)
+  var d = isLE ? 1 : -1
+  var s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0
+
+  value = Math.abs(value)
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0
+    e = eMax
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2)
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--
+      c *= 2
+    }
+    if (e + eBias >= 1) {
+      value += rt / c
+    } else {
+      value += rt * Math.pow(2, 1 - eBias)
+    }
+    if (value * c >= 2) {
+      e++
+      c /= 2
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0
+      e = eMax
+    } else if (e + eBias >= 1) {
+      m = ((value * c) - 1) * Math.pow(2, mLen)
+      e = e + eBias
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen)
+      e = 0
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8) {}
+
+  e = (e << mLen) | m
+  eLen += mLen
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8) {}
+
+  buffer[offset + i - d] |= s * 128
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/indexof/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/indexof/index.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+var indexOf = [].indexOf;
+
+module.exports = function(arr, obj){
+  if (indexOf) return arr.indexOf(obj);
+  for (var i = 0; i < arr.length; ++i) {
+    if (arr[i] === obj) return i;
+  }
+  return -1;
+};
+
+/***/ }),
+
+/***/ "./node_modules/isarray/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/isarray/index.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+var toString = {}.toString;
+
+module.exports = Array.isArray || function (arr) {
+  return toString.call(arr) == '[object Array]';
+};
 
 
 /***/ }),
@@ -35102,6 +42015,296 @@ return jQuery;
 
 /***/ }),
 
+/***/ "./node_modules/ms/index.js":
+/*!**********************************!*\
+  !*** ./node_modules/ms/index.js ***!
+  \**********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} [options]
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options) {
+  options = options || {};
+  var type = typeof val;
+  if (type === 'string' && val.length > 0) {
+    return parse(val);
+  } else if (type === 'number' && isNaN(val) === false) {
+    return options.long ? fmtLong(val) : fmtShort(val);
+  }
+  throw new Error(
+    'val is not a non-empty string or a valid number. val=' +
+      JSON.stringify(val)
+  );
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = String(str);
+  if (str.length > 100) {
+    return;
+  }
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+    str
+  );
+  if (!match) {
+    return;
+  }
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtShort(ms) {
+  if (ms >= d) {
+    return Math.round(ms / d) + 'd';
+  }
+  if (ms >= h) {
+    return Math.round(ms / h) + 'h';
+  }
+  if (ms >= m) {
+    return Math.round(ms / m) + 'm';
+  }
+  if (ms >= s) {
+    return Math.round(ms / s) + 's';
+  }
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtLong(ms) {
+  return plural(ms, d, 'day') ||
+    plural(ms, h, 'hour') ||
+    plural(ms, m, 'minute') ||
+    plural(ms, s, 'second') ||
+    ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) {
+    return;
+  }
+  if (ms < n * 1.5) {
+    return Math.floor(ms / n) + ' ' + name;
+  }
+  return Math.ceil(ms / n) + ' ' + name + 's';
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/parseqs/index.js":
+/*!***************************************!*\
+  !*** ./node_modules/parseqs/index.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * Compiles a querystring
+ * Returns string representation of the object
+ *
+ * @param {Object}
+ * @api private
+ */
+
+exports.encode = function (obj) {
+  var str = '';
+
+  for (var i in obj) {
+    if (obj.hasOwnProperty(i)) {
+      if (str.length) str += '&';
+      str += encodeURIComponent(i) + '=' + encodeURIComponent(obj[i]);
+    }
+  }
+
+  return str;
+};
+
+/**
+ * Parses a simple querystring into an object
+ *
+ * @param {String} qs
+ * @api private
+ */
+
+exports.decode = function(qs){
+  var qry = {};
+  var pairs = qs.split('&');
+  for (var i = 0, l = pairs.length; i < l; i++) {
+    var pair = pairs[i].split('=');
+    qry[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
+  }
+  return qry;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/parseuri/index.js":
+/*!****************************************!*\
+  !*** ./node_modules/parseuri/index.js ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/**
+ * Parses an URI
+ *
+ * @author Steven Levithan <stevenlevithan.com> (MIT license)
+ * @api private
+ */
+
+var re = /^(?:(?![^:@]+:[^:@\/]*@)(http|https|ws|wss):\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?((?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}|[^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
+
+var parts = [
+    'source', 'protocol', 'authority', 'userInfo', 'user', 'password', 'host', 'port', 'relative', 'path', 'directory', 'file', 'query', 'anchor'
+];
+
+module.exports = function parseuri(str) {
+    var src = str,
+        b = str.indexOf('['),
+        e = str.indexOf(']');
+
+    if (b != -1 && e != -1) {
+        str = str.substring(0, b) + str.substring(b, e).replace(/:/g, ';') + str.substring(e, str.length);
+    }
+
+    var m = re.exec(str || ''),
+        uri = {},
+        i = 14;
+
+    while (i--) {
+        uri[parts[i]] = m[i] || '';
+    }
+
+    if (b != -1 && e != -1) {
+        uri.source = src;
+        uri.host = uri.host.substring(1, uri.host.length - 1).replace(/;/g, ':');
+        uri.authority = uri.authority.replace('[', '').replace(']', '').replace(/;/g, ':');
+        uri.ipv6uri = true;
+    }
+
+    uri.pathNames = pathNames(uri, uri['path']);
+    uri.queryKey = queryKey(uri, uri['query']);
+
+    return uri;
+};
+
+function pathNames(obj, path) {
+    var regx = /\/{2,9}/g,
+        names = path.replace(regx, "/").split("/");
+
+    if (path.substr(0, 1) == '/' || path.length === 0) {
+        names.splice(0, 1);
+    }
+    if (path.substr(path.length - 1, 1) == '/') {
+        names.splice(names.length - 1, 1);
+    }
+
+    return names;
+}
+
+function queryKey(uri, query) {
+    var data = {};
+
+    query.replace(/(?:^|&)([^&=]*)=?([^&]*)/g, function ($0, $1, $2) {
+        if ($1) {
+            data[$1] = $2;
+        }
+    });
+
+    return data;
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/popper.js/dist/esm/popper.js":
 /*!***************************************************!*\
   !*** ./node_modules/popper.js/dist/esm/popper.js ***!
@@ -38125,6 +45328,1892 @@ process.umask = function() { return 0; };
 
 /***/ }),
 
+/***/ "./node_modules/socket.io-client/lib/index.js":
+/*!****************************************************!*\
+  !*** ./node_modules/socket.io-client/lib/index.js ***!
+  \****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Module dependencies.
+ */
+
+var url = __webpack_require__(/*! ./url */ "./node_modules/socket.io-client/lib/url.js");
+var parser = __webpack_require__(/*! socket.io-parser */ "./node_modules/socket.io-client/node_modules/socket.io-parser/index.js");
+var Manager = __webpack_require__(/*! ./manager */ "./node_modules/socket.io-client/lib/manager.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('socket.io-client');
+
+/**
+ * Module exports.
+ */
+
+module.exports = exports = lookup;
+
+/**
+ * Managers cache.
+ */
+
+var cache = exports.managers = {};
+
+/**
+ * Looks up an existing `Manager` for multiplexing.
+ * If the user summons:
+ *
+ *   `io('http://localhost/a');`
+ *   `io('http://localhost/b');`
+ *
+ * We reuse the existing instance based on same scheme/port/host,
+ * and we initialize sockets for each namespace.
+ *
+ * @api public
+ */
+
+function lookup (uri, opts) {
+  if (typeof uri === 'object') {
+    opts = uri;
+    uri = undefined;
+  }
+
+  opts = opts || {};
+
+  var parsed = url(uri);
+  var source = parsed.source;
+  var id = parsed.id;
+  var path = parsed.path;
+  var sameNamespace = cache[id] && path in cache[id].nsps;
+  var newConnection = opts.forceNew || opts['force new connection'] ||
+                      false === opts.multiplex || sameNamespace;
+
+  var io;
+
+  if (newConnection) {
+    debug('ignoring socket cache for %s', source);
+    io = Manager(source, opts);
+  } else {
+    if (!cache[id]) {
+      debug('new io instance for %s', source);
+      cache[id] = Manager(source, opts);
+    }
+    io = cache[id];
+  }
+  if (parsed.query && !opts.query) {
+    opts.query = parsed.query;
+  }
+  return io.socket(parsed.path, opts);
+}
+
+/**
+ * Protocol version.
+ *
+ * @api public
+ */
+
+exports.protocol = parser.protocol;
+
+/**
+ * `connect`.
+ *
+ * @param {String} uri
+ * @api public
+ */
+
+exports.connect = lookup;
+
+/**
+ * Expose constructors for standalone build.
+ *
+ * @api public
+ */
+
+exports.Manager = __webpack_require__(/*! ./manager */ "./node_modules/socket.io-client/lib/manager.js");
+exports.Socket = __webpack_require__(/*! ./socket */ "./node_modules/socket.io-client/lib/socket.js");
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/lib/manager.js":
+/*!******************************************************!*\
+  !*** ./node_modules/socket.io-client/lib/manager.js ***!
+  \******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Module dependencies.
+ */
+
+var eio = __webpack_require__(/*! engine.io-client */ "./node_modules/engine.io-client/lib/index.js");
+var Socket = __webpack_require__(/*! ./socket */ "./node_modules/socket.io-client/lib/socket.js");
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+var parser = __webpack_require__(/*! socket.io-parser */ "./node_modules/socket.io-client/node_modules/socket.io-parser/index.js");
+var on = __webpack_require__(/*! ./on */ "./node_modules/socket.io-client/lib/on.js");
+var bind = __webpack_require__(/*! component-bind */ "./node_modules/component-bind/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('socket.io-client:manager');
+var indexOf = __webpack_require__(/*! indexof */ "./node_modules/indexof/index.js");
+var Backoff = __webpack_require__(/*! backo2 */ "./node_modules/backo2/index.js");
+
+/**
+ * IE6+ hasOwnProperty
+ */
+
+var has = Object.prototype.hasOwnProperty;
+
+/**
+ * Module exports
+ */
+
+module.exports = Manager;
+
+/**
+ * `Manager` constructor.
+ *
+ * @param {String} engine instance or engine uri/opts
+ * @param {Object} options
+ * @api public
+ */
+
+function Manager (uri, opts) {
+  if (!(this instanceof Manager)) return new Manager(uri, opts);
+  if (uri && ('object' === typeof uri)) {
+    opts = uri;
+    uri = undefined;
+  }
+  opts = opts || {};
+
+  opts.path = opts.path || '/socket.io';
+  this.nsps = {};
+  this.subs = [];
+  this.opts = opts;
+  this.reconnection(opts.reconnection !== false);
+  this.reconnectionAttempts(opts.reconnectionAttempts || Infinity);
+  this.reconnectionDelay(opts.reconnectionDelay || 1000);
+  this.reconnectionDelayMax(opts.reconnectionDelayMax || 5000);
+  this.randomizationFactor(opts.randomizationFactor || 0.5);
+  this.backoff = new Backoff({
+    min: this.reconnectionDelay(),
+    max: this.reconnectionDelayMax(),
+    jitter: this.randomizationFactor()
+  });
+  this.timeout(null == opts.timeout ? 20000 : opts.timeout);
+  this.readyState = 'closed';
+  this.uri = uri;
+  this.connecting = [];
+  this.lastPing = null;
+  this.encoding = false;
+  this.packetBuffer = [];
+  var _parser = opts.parser || parser;
+  this.encoder = new _parser.Encoder();
+  this.decoder = new _parser.Decoder();
+  this.autoConnect = opts.autoConnect !== false;
+  if (this.autoConnect) this.open();
+}
+
+/**
+ * Propagate given event to sockets and emit on `this`
+ *
+ * @api private
+ */
+
+Manager.prototype.emitAll = function () {
+  this.emit.apply(this, arguments);
+  for (var nsp in this.nsps) {
+    if (has.call(this.nsps, nsp)) {
+      this.nsps[nsp].emit.apply(this.nsps[nsp], arguments);
+    }
+  }
+};
+
+/**
+ * Update `socket.id` of all sockets
+ *
+ * @api private
+ */
+
+Manager.prototype.updateSocketIds = function () {
+  for (var nsp in this.nsps) {
+    if (has.call(this.nsps, nsp)) {
+      this.nsps[nsp].id = this.generateId(nsp);
+    }
+  }
+};
+
+/**
+ * generate `socket.id` for the given `nsp`
+ *
+ * @param {String} nsp
+ * @return {String}
+ * @api private
+ */
+
+Manager.prototype.generateId = function (nsp) {
+  return (nsp === '/' ? '' : (nsp + '#')) + this.engine.id;
+};
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Manager.prototype);
+
+/**
+ * Sets the `reconnection` config.
+ *
+ * @param {Boolean} true/false if it should automatically reconnect
+ * @return {Manager} self or value
+ * @api public
+ */
+
+Manager.prototype.reconnection = function (v) {
+  if (!arguments.length) return this._reconnection;
+  this._reconnection = !!v;
+  return this;
+};
+
+/**
+ * Sets the reconnection attempts config.
+ *
+ * @param {Number} max reconnection attempts before giving up
+ * @return {Manager} self or value
+ * @api public
+ */
+
+Manager.prototype.reconnectionAttempts = function (v) {
+  if (!arguments.length) return this._reconnectionAttempts;
+  this._reconnectionAttempts = v;
+  return this;
+};
+
+/**
+ * Sets the delay between reconnections.
+ *
+ * @param {Number} delay
+ * @return {Manager} self or value
+ * @api public
+ */
+
+Manager.prototype.reconnectionDelay = function (v) {
+  if (!arguments.length) return this._reconnectionDelay;
+  this._reconnectionDelay = v;
+  this.backoff && this.backoff.setMin(v);
+  return this;
+};
+
+Manager.prototype.randomizationFactor = function (v) {
+  if (!arguments.length) return this._randomizationFactor;
+  this._randomizationFactor = v;
+  this.backoff && this.backoff.setJitter(v);
+  return this;
+};
+
+/**
+ * Sets the maximum delay between reconnections.
+ *
+ * @param {Number} delay
+ * @return {Manager} self or value
+ * @api public
+ */
+
+Manager.prototype.reconnectionDelayMax = function (v) {
+  if (!arguments.length) return this._reconnectionDelayMax;
+  this._reconnectionDelayMax = v;
+  this.backoff && this.backoff.setMax(v);
+  return this;
+};
+
+/**
+ * Sets the connection timeout. `false` to disable
+ *
+ * @return {Manager} self or value
+ * @api public
+ */
+
+Manager.prototype.timeout = function (v) {
+  if (!arguments.length) return this._timeout;
+  this._timeout = v;
+  return this;
+};
+
+/**
+ * Starts trying to reconnect if reconnection is enabled and we have not
+ * started reconnecting yet
+ *
+ * @api private
+ */
+
+Manager.prototype.maybeReconnectOnOpen = function () {
+  // Only try to reconnect if it's the first time we're connecting
+  if (!this.reconnecting && this._reconnection && this.backoff.attempts === 0) {
+    // keeps reconnection from firing twice for the same reconnection loop
+    this.reconnect();
+  }
+};
+
+/**
+ * Sets the current transport `socket`.
+ *
+ * @param {Function} optional, callback
+ * @return {Manager} self
+ * @api public
+ */
+
+Manager.prototype.open =
+Manager.prototype.connect = function (fn, opts) {
+  debug('readyState %s', this.readyState);
+  if (~this.readyState.indexOf('open')) return this;
+
+  debug('opening %s', this.uri);
+  this.engine = eio(this.uri, this.opts);
+  var socket = this.engine;
+  var self = this;
+  this.readyState = 'opening';
+  this.skipReconnect = false;
+
+  // emit `open`
+  var openSub = on(socket, 'open', function () {
+    self.onopen();
+    fn && fn();
+  });
+
+  // emit `connect_error`
+  var errorSub = on(socket, 'error', function (data) {
+    debug('connect_error');
+    self.cleanup();
+    self.readyState = 'closed';
+    self.emitAll('connect_error', data);
+    if (fn) {
+      var err = new Error('Connection error');
+      err.data = data;
+      fn(err);
+    } else {
+      // Only do this if there is no fn to handle the error
+      self.maybeReconnectOnOpen();
+    }
+  });
+
+  // emit `connect_timeout`
+  if (false !== this._timeout) {
+    var timeout = this._timeout;
+    debug('connect attempt will timeout after %d', timeout);
+
+    if (timeout === 0) {
+      openSub.destroy(); // prevents a race condition with the 'open' event
+    }
+
+    // set timer
+    var timer = setTimeout(function () {
+      debug('connect attempt timed out after %d', timeout);
+      openSub.destroy();
+      socket.close();
+      socket.emit('error', 'timeout');
+      self.emitAll('connect_timeout', timeout);
+    }, timeout);
+
+    this.subs.push({
+      destroy: function () {
+        clearTimeout(timer);
+      }
+    });
+  }
+
+  this.subs.push(openSub);
+  this.subs.push(errorSub);
+
+  return this;
+};
+
+/**
+ * Called upon transport open.
+ *
+ * @api private
+ */
+
+Manager.prototype.onopen = function () {
+  debug('open');
+
+  // clear old subs
+  this.cleanup();
+
+  // mark as open
+  this.readyState = 'open';
+  this.emit('open');
+
+  // add new subs
+  var socket = this.engine;
+  this.subs.push(on(socket, 'data', bind(this, 'ondata')));
+  this.subs.push(on(socket, 'ping', bind(this, 'onping')));
+  this.subs.push(on(socket, 'pong', bind(this, 'onpong')));
+  this.subs.push(on(socket, 'error', bind(this, 'onerror')));
+  this.subs.push(on(socket, 'close', bind(this, 'onclose')));
+  this.subs.push(on(this.decoder, 'decoded', bind(this, 'ondecoded')));
+};
+
+/**
+ * Called upon a ping.
+ *
+ * @api private
+ */
+
+Manager.prototype.onping = function () {
+  this.lastPing = new Date();
+  this.emitAll('ping');
+};
+
+/**
+ * Called upon a packet.
+ *
+ * @api private
+ */
+
+Manager.prototype.onpong = function () {
+  this.emitAll('pong', new Date() - this.lastPing);
+};
+
+/**
+ * Called with data.
+ *
+ * @api private
+ */
+
+Manager.prototype.ondata = function (data) {
+  this.decoder.add(data);
+};
+
+/**
+ * Called when parser fully decodes a packet.
+ *
+ * @api private
+ */
+
+Manager.prototype.ondecoded = function (packet) {
+  this.emit('packet', packet);
+};
+
+/**
+ * Called upon socket error.
+ *
+ * @api private
+ */
+
+Manager.prototype.onerror = function (err) {
+  debug('error', err);
+  this.emitAll('error', err);
+};
+
+/**
+ * Creates a new socket for the given `nsp`.
+ *
+ * @return {Socket}
+ * @api public
+ */
+
+Manager.prototype.socket = function (nsp, opts) {
+  var socket = this.nsps[nsp];
+  if (!socket) {
+    socket = new Socket(this, nsp, opts);
+    this.nsps[nsp] = socket;
+    var self = this;
+    socket.on('connecting', onConnecting);
+    socket.on('connect', function () {
+      socket.id = self.generateId(nsp);
+    });
+
+    if (this.autoConnect) {
+      // manually call here since connecting event is fired before listening
+      onConnecting();
+    }
+  }
+
+  function onConnecting () {
+    if (!~indexOf(self.connecting, socket)) {
+      self.connecting.push(socket);
+    }
+  }
+
+  return socket;
+};
+
+/**
+ * Called upon a socket close.
+ *
+ * @param {Socket} socket
+ */
+
+Manager.prototype.destroy = function (socket) {
+  var index = indexOf(this.connecting, socket);
+  if (~index) this.connecting.splice(index, 1);
+  if (this.connecting.length) return;
+
+  this.close();
+};
+
+/**
+ * Writes a packet.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Manager.prototype.packet = function (packet) {
+  debug('writing packet %j', packet);
+  var self = this;
+  if (packet.query && packet.type === 0) packet.nsp += '?' + packet.query;
+
+  if (!self.encoding) {
+    // encode, then write to engine with result
+    self.encoding = true;
+    this.encoder.encode(packet, function (encodedPackets) {
+      for (var i = 0; i < encodedPackets.length; i++) {
+        self.engine.write(encodedPackets[i], packet.options);
+      }
+      self.encoding = false;
+      self.processPacketQueue();
+    });
+  } else { // add packet to the queue
+    self.packetBuffer.push(packet);
+  }
+};
+
+/**
+ * If packet buffer is non-empty, begins encoding the
+ * next packet in line.
+ *
+ * @api private
+ */
+
+Manager.prototype.processPacketQueue = function () {
+  if (this.packetBuffer.length > 0 && !this.encoding) {
+    var pack = this.packetBuffer.shift();
+    this.packet(pack);
+  }
+};
+
+/**
+ * Clean up transport subscriptions and packet buffer.
+ *
+ * @api private
+ */
+
+Manager.prototype.cleanup = function () {
+  debug('cleanup');
+
+  var subsLength = this.subs.length;
+  for (var i = 0; i < subsLength; i++) {
+    var sub = this.subs.shift();
+    sub.destroy();
+  }
+
+  this.packetBuffer = [];
+  this.encoding = false;
+  this.lastPing = null;
+
+  this.decoder.destroy();
+};
+
+/**
+ * Close the current socket.
+ *
+ * @api private
+ */
+
+Manager.prototype.close =
+Manager.prototype.disconnect = function () {
+  debug('disconnect');
+  this.skipReconnect = true;
+  this.reconnecting = false;
+  if ('opening' === this.readyState) {
+    // `onclose` will not fire because
+    // an open event never happened
+    this.cleanup();
+  }
+  this.backoff.reset();
+  this.readyState = 'closed';
+  if (this.engine) this.engine.close();
+};
+
+/**
+ * Called upon engine close.
+ *
+ * @api private
+ */
+
+Manager.prototype.onclose = function (reason) {
+  debug('onclose');
+
+  this.cleanup();
+  this.backoff.reset();
+  this.readyState = 'closed';
+  this.emit('close', reason);
+
+  if (this._reconnection && !this.skipReconnect) {
+    this.reconnect();
+  }
+};
+
+/**
+ * Attempt a reconnection.
+ *
+ * @api private
+ */
+
+Manager.prototype.reconnect = function () {
+  if (this.reconnecting || this.skipReconnect) return this;
+
+  var self = this;
+
+  if (this.backoff.attempts >= this._reconnectionAttempts) {
+    debug('reconnect failed');
+    this.backoff.reset();
+    this.emitAll('reconnect_failed');
+    this.reconnecting = false;
+  } else {
+    var delay = this.backoff.duration();
+    debug('will wait %dms before reconnect attempt', delay);
+
+    this.reconnecting = true;
+    var timer = setTimeout(function () {
+      if (self.skipReconnect) return;
+
+      debug('attempting reconnect');
+      self.emitAll('reconnect_attempt', self.backoff.attempts);
+      self.emitAll('reconnecting', self.backoff.attempts);
+
+      // check again for the case socket closed in above events
+      if (self.skipReconnect) return;
+
+      self.open(function (err) {
+        if (err) {
+          debug('reconnect attempt error');
+          self.reconnecting = false;
+          self.reconnect();
+          self.emitAll('reconnect_error', err.data);
+        } else {
+          debug('reconnect success');
+          self.onreconnect();
+        }
+      });
+    }, delay);
+
+    this.subs.push({
+      destroy: function () {
+        clearTimeout(timer);
+      }
+    });
+  }
+};
+
+/**
+ * Called upon successful reconnect.
+ *
+ * @api private
+ */
+
+Manager.prototype.onreconnect = function () {
+  var attempt = this.backoff.attempts;
+  this.reconnecting = false;
+  this.backoff.reset();
+  this.updateSocketIds();
+  this.emitAll('reconnect', attempt);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/lib/on.js":
+/*!*************************************************!*\
+  !*** ./node_modules/socket.io-client/lib/on.js ***!
+  \*************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+/**
+ * Module exports.
+ */
+
+module.exports = on;
+
+/**
+ * Helper for subscriptions.
+ *
+ * @param {Object|EventEmitter} obj with `Emitter` mixin or `EventEmitter`
+ * @param {String} event name
+ * @param {Function} callback
+ * @api public
+ */
+
+function on (obj, ev, fn) {
+  obj.on(ev, fn);
+  return {
+    destroy: function () {
+      obj.removeListener(ev, fn);
+    }
+  };
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/lib/socket.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/socket.io-client/lib/socket.js ***!
+  \*****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Module dependencies.
+ */
+
+var parser = __webpack_require__(/*! socket.io-parser */ "./node_modules/socket.io-client/node_modules/socket.io-parser/index.js");
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+var toArray = __webpack_require__(/*! to-array */ "./node_modules/to-array/index.js");
+var on = __webpack_require__(/*! ./on */ "./node_modules/socket.io-client/lib/on.js");
+var bind = __webpack_require__(/*! component-bind */ "./node_modules/component-bind/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('socket.io-client:socket');
+var parseqs = __webpack_require__(/*! parseqs */ "./node_modules/parseqs/index.js");
+var hasBin = __webpack_require__(/*! has-binary2 */ "./node_modules/has-binary2/index.js");
+
+/**
+ * Module exports.
+ */
+
+module.exports = exports = Socket;
+
+/**
+ * Internal events (blacklisted).
+ * These events can't be emitted by the user.
+ *
+ * @api private
+ */
+
+var events = {
+  connect: 1,
+  connect_error: 1,
+  connect_timeout: 1,
+  connecting: 1,
+  disconnect: 1,
+  error: 1,
+  reconnect: 1,
+  reconnect_attempt: 1,
+  reconnect_failed: 1,
+  reconnect_error: 1,
+  reconnecting: 1,
+  ping: 1,
+  pong: 1
+};
+
+/**
+ * Shortcut to `Emitter#emit`.
+ */
+
+var emit = Emitter.prototype.emit;
+
+/**
+ * `Socket` constructor.
+ *
+ * @api public
+ */
+
+function Socket (io, nsp, opts) {
+  this.io = io;
+  this.nsp = nsp;
+  this.json = this; // compat
+  this.ids = 0;
+  this.acks = {};
+  this.receiveBuffer = [];
+  this.sendBuffer = [];
+  this.connected = false;
+  this.disconnected = true;
+  this.flags = {};
+  if (opts && opts.query) {
+    this.query = opts.query;
+  }
+  if (this.io.autoConnect) this.open();
+}
+
+/**
+ * Mix in `Emitter`.
+ */
+
+Emitter(Socket.prototype);
+
+/**
+ * Subscribe to open, close and packet events
+ *
+ * @api private
+ */
+
+Socket.prototype.subEvents = function () {
+  if (this.subs) return;
+
+  var io = this.io;
+  this.subs = [
+    on(io, 'open', bind(this, 'onopen')),
+    on(io, 'packet', bind(this, 'onpacket')),
+    on(io, 'close', bind(this, 'onclose'))
+  ];
+};
+
+/**
+ * "Opens" the socket.
+ *
+ * @api public
+ */
+
+Socket.prototype.open =
+Socket.prototype.connect = function () {
+  if (this.connected) return this;
+
+  this.subEvents();
+  if (!this.io.reconnecting) this.io.open(); // ensure open
+  if ('open' === this.io.readyState) this.onopen();
+  this.emit('connecting');
+  return this;
+};
+
+/**
+ * Sends a `message` event.
+ *
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.send = function () {
+  var args = toArray(arguments);
+  args.unshift('message');
+  this.emit.apply(this, args);
+  return this;
+};
+
+/**
+ * Override `emit`.
+ * If the event is in `events`, it's emitted normally.
+ *
+ * @param {String} event name
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.emit = function (ev) {
+  if (events.hasOwnProperty(ev)) {
+    emit.apply(this, arguments);
+    return this;
+  }
+
+  var args = toArray(arguments);
+  var packet = {
+    type: (this.flags.binary !== undefined ? this.flags.binary : hasBin(args)) ? parser.BINARY_EVENT : parser.EVENT,
+    data: args
+  };
+
+  packet.options = {};
+  packet.options.compress = !this.flags || false !== this.flags.compress;
+
+  // event ack callback
+  if ('function' === typeof args[args.length - 1]) {
+    debug('emitting packet with ack id %d', this.ids);
+    this.acks[this.ids] = args.pop();
+    packet.id = this.ids++;
+  }
+
+  if (this.connected) {
+    this.packet(packet);
+  } else {
+    this.sendBuffer.push(packet);
+  }
+
+  this.flags = {};
+
+  return this;
+};
+
+/**
+ * Sends a packet.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.packet = function (packet) {
+  packet.nsp = this.nsp;
+  this.io.packet(packet);
+};
+
+/**
+ * Called upon engine `open`.
+ *
+ * @api private
+ */
+
+Socket.prototype.onopen = function () {
+  debug('transport is open - connecting');
+
+  // write connect packet if necessary
+  if ('/' !== this.nsp) {
+    if (this.query) {
+      var query = typeof this.query === 'object' ? parseqs.encode(this.query) : this.query;
+      debug('sending connect packet with query %s', query);
+      this.packet({type: parser.CONNECT, query: query});
+    } else {
+      this.packet({type: parser.CONNECT});
+    }
+  }
+};
+
+/**
+ * Called upon engine `close`.
+ *
+ * @param {String} reason
+ * @api private
+ */
+
+Socket.prototype.onclose = function (reason) {
+  debug('close (%s)', reason);
+  this.connected = false;
+  this.disconnected = true;
+  delete this.id;
+  this.emit('disconnect', reason);
+};
+
+/**
+ * Called with socket packet.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onpacket = function (packet) {
+  var sameNamespace = packet.nsp === this.nsp;
+  var rootNamespaceError = packet.type === parser.ERROR && packet.nsp === '/';
+
+  if (!sameNamespace && !rootNamespaceError) return;
+
+  switch (packet.type) {
+    case parser.CONNECT:
+      this.onconnect();
+      break;
+
+    case parser.EVENT:
+      this.onevent(packet);
+      break;
+
+    case parser.BINARY_EVENT:
+      this.onevent(packet);
+      break;
+
+    case parser.ACK:
+      this.onack(packet);
+      break;
+
+    case parser.BINARY_ACK:
+      this.onack(packet);
+      break;
+
+    case parser.DISCONNECT:
+      this.ondisconnect();
+      break;
+
+    case parser.ERROR:
+      this.emit('error', packet.data);
+      break;
+  }
+};
+
+/**
+ * Called upon a server event.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onevent = function (packet) {
+  var args = packet.data || [];
+  debug('emitting event %j', args);
+
+  if (null != packet.id) {
+    debug('attaching ack callback to event');
+    args.push(this.ack(packet.id));
+  }
+
+  if (this.connected) {
+    emit.apply(this, args);
+  } else {
+    this.receiveBuffer.push(args);
+  }
+};
+
+/**
+ * Produces an ack callback to emit with an event.
+ *
+ * @api private
+ */
+
+Socket.prototype.ack = function (id) {
+  var self = this;
+  var sent = false;
+  return function () {
+    // prevent double callbacks
+    if (sent) return;
+    sent = true;
+    var args = toArray(arguments);
+    debug('sending ack %j', args);
+
+    self.packet({
+      type: hasBin(args) ? parser.BINARY_ACK : parser.ACK,
+      id: id,
+      data: args
+    });
+  };
+};
+
+/**
+ * Called upon a server acknowlegement.
+ *
+ * @param {Object} packet
+ * @api private
+ */
+
+Socket.prototype.onack = function (packet) {
+  var ack = this.acks[packet.id];
+  if ('function' === typeof ack) {
+    debug('calling ack %s with %j', packet.id, packet.data);
+    ack.apply(this, packet.data);
+    delete this.acks[packet.id];
+  } else {
+    debug('bad ack %s', packet.id);
+  }
+};
+
+/**
+ * Called upon server connect.
+ *
+ * @api private
+ */
+
+Socket.prototype.onconnect = function () {
+  this.connected = true;
+  this.disconnected = false;
+  this.emitBuffered();
+  this.emit('connect');
+};
+
+/**
+ * Emit buffered events (received and emitted).
+ *
+ * @api private
+ */
+
+Socket.prototype.emitBuffered = function () {
+  var i;
+  for (i = 0; i < this.receiveBuffer.length; i++) {
+    emit.apply(this, this.receiveBuffer[i]);
+  }
+  this.receiveBuffer = [];
+
+  for (i = 0; i < this.sendBuffer.length; i++) {
+    this.packet(this.sendBuffer[i]);
+  }
+  this.sendBuffer = [];
+};
+
+/**
+ * Called upon server disconnect.
+ *
+ * @api private
+ */
+
+Socket.prototype.ondisconnect = function () {
+  debug('server disconnect (%s)', this.nsp);
+  this.destroy();
+  this.onclose('io server disconnect');
+};
+
+/**
+ * Called upon forced client/server side disconnections,
+ * this method ensures the manager stops tracking us and
+ * that reconnections don't get triggered for this.
+ *
+ * @api private.
+ */
+
+Socket.prototype.destroy = function () {
+  if (this.subs) {
+    // clean subscriptions to avoid reconnections
+    for (var i = 0; i < this.subs.length; i++) {
+      this.subs[i].destroy();
+    }
+    this.subs = null;
+  }
+
+  this.io.destroy(this);
+};
+
+/**
+ * Disconnects the socket manually.
+ *
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.close =
+Socket.prototype.disconnect = function () {
+  if (this.connected) {
+    debug('performing disconnect (%s)', this.nsp);
+    this.packet({ type: parser.DISCONNECT });
+  }
+
+  // remove socket from pool
+  this.destroy();
+
+  if (this.connected) {
+    // fire events
+    this.onclose('io client disconnect');
+  }
+  return this;
+};
+
+/**
+ * Sets the compress flag.
+ *
+ * @param {Boolean} if `true`, compresses the sending data
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.compress = function (compress) {
+  this.flags.compress = compress;
+  return this;
+};
+
+/**
+ * Sets the binary flag
+ *
+ * @param {Boolean} whether the emitted data contains binary
+ * @return {Socket} self
+ * @api public
+ */
+
+Socket.prototype.binary = function (binary) {
+  this.flags.binary = binary;
+  return this;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/lib/url.js":
+/*!**************************************************!*\
+  !*** ./node_modules/socket.io-client/lib/url.js ***!
+  \**************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Module dependencies.
+ */
+
+var parseuri = __webpack_require__(/*! parseuri */ "./node_modules/parseuri/index.js");
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('socket.io-client:url');
+
+/**
+ * Module exports.
+ */
+
+module.exports = url;
+
+/**
+ * URL parser.
+ *
+ * @param {String} url
+ * @param {Object} An object meant to mimic window.location.
+ *                 Defaults to window.location.
+ * @api public
+ */
+
+function url (uri, loc) {
+  var obj = uri;
+
+  // default to window.location
+  loc = loc || (typeof location !== 'undefined' && location);
+  if (null == uri) uri = loc.protocol + '//' + loc.host;
+
+  // relative path support
+  if ('string' === typeof uri) {
+    if ('/' === uri.charAt(0)) {
+      if ('/' === uri.charAt(1)) {
+        uri = loc.protocol + uri;
+      } else {
+        uri = loc.host + uri;
+      }
+    }
+
+    if (!/^(https?|wss?):\/\//.test(uri)) {
+      debug('protocol-less url %s', uri);
+      if ('undefined' !== typeof loc) {
+        uri = loc.protocol + '//' + uri;
+      } else {
+        uri = 'https://' + uri;
+      }
+    }
+
+    // parse
+    debug('parse %s', uri);
+    obj = parseuri(uri);
+  }
+
+  // make sure we treat `localhost:80` and `localhost` equally
+  if (!obj.port) {
+    if (/^(http|ws)$/.test(obj.protocol)) {
+      obj.port = '80';
+    } else if (/^(http|ws)s$/.test(obj.protocol)) {
+      obj.port = '443';
+    }
+  }
+
+  obj.path = obj.path || '/';
+
+  var ipv6 = obj.host.indexOf(':') !== -1;
+  var host = ipv6 ? '[' + obj.host + ']' : obj.host;
+
+  // define unique id
+  obj.id = obj.protocol + '://' + host + ':' + obj.port;
+  // define href
+  obj.href = obj.protocol + '://' + host + (loc && loc.port === obj.port ? '' : (':' + obj.port));
+
+  return obj;
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/node_modules/isarray/index.js":
+/*!*********************************************************************!*\
+  !*** ./node_modules/socket.io-client/node_modules/isarray/index.js ***!
+  \*********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+var toString = {}.toString;
+
+module.exports = Array.isArray || function (arr) {
+  return toString.call(arr) == '[object Array]';
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/node_modules/socket.io-parser/binary.js":
+/*!*******************************************************************************!*\
+  !*** ./node_modules/socket.io-client/node_modules/socket.io-parser/binary.js ***!
+  \*******************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/*global Blob,File*/
+
+/**
+ * Module requirements
+ */
+
+var isArray = __webpack_require__(/*! isarray */ "./node_modules/socket.io-client/node_modules/isarray/index.js");
+var isBuf = __webpack_require__(/*! ./is-buffer */ "./node_modules/socket.io-client/node_modules/socket.io-parser/is-buffer.js");
+var toString = Object.prototype.toString;
+var withNativeBlob = typeof Blob === 'function' || (typeof Blob !== 'undefined' && toString.call(Blob) === '[object BlobConstructor]');
+var withNativeFile = typeof File === 'function' || (typeof File !== 'undefined' && toString.call(File) === '[object FileConstructor]');
+
+/**
+ * Replaces every Buffer | ArrayBuffer in packet with a numbered placeholder.
+ * Anything with blobs or files should be fed through removeBlobs before coming
+ * here.
+ *
+ * @param {Object} packet - socket.io event packet
+ * @return {Object} with deconstructed packet and list of buffers
+ * @api public
+ */
+
+exports.deconstructPacket = function(packet) {
+  var buffers = [];
+  var packetData = packet.data;
+  var pack = packet;
+  pack.data = _deconstructPacket(packetData, buffers);
+  pack.attachments = buffers.length; // number of binary 'attachments'
+  return {packet: pack, buffers: buffers};
+};
+
+function _deconstructPacket(data, buffers) {
+  if (!data) return data;
+
+  if (isBuf(data)) {
+    var placeholder = { _placeholder: true, num: buffers.length };
+    buffers.push(data);
+    return placeholder;
+  } else if (isArray(data)) {
+    var newData = new Array(data.length);
+    for (var i = 0; i < data.length; i++) {
+      newData[i] = _deconstructPacket(data[i], buffers);
+    }
+    return newData;
+  } else if (typeof data === 'object' && !(data instanceof Date)) {
+    var newData = {};
+    for (var key in data) {
+      newData[key] = _deconstructPacket(data[key], buffers);
+    }
+    return newData;
+  }
+  return data;
+}
+
+/**
+ * Reconstructs a binary packet from its placeholder packet and buffers
+ *
+ * @param {Object} packet - event packet with placeholders
+ * @param {Array} buffers - binary buffers to put in placeholder positions
+ * @return {Object} reconstructed packet
+ * @api public
+ */
+
+exports.reconstructPacket = function(packet, buffers) {
+  packet.data = _reconstructPacket(packet.data, buffers);
+  packet.attachments = undefined; // no longer useful
+  return packet;
+};
+
+function _reconstructPacket(data, buffers) {
+  if (!data) return data;
+
+  if (data && data._placeholder) {
+    return buffers[data.num]; // appropriate buffer (should be natural order anyway)
+  } else if (isArray(data)) {
+    for (var i = 0; i < data.length; i++) {
+      data[i] = _reconstructPacket(data[i], buffers);
+    }
+  } else if (typeof data === 'object') {
+    for (var key in data) {
+      data[key] = _reconstructPacket(data[key], buffers);
+    }
+  }
+
+  return data;
+}
+
+/**
+ * Asynchronously removes Blobs or Files from data via
+ * FileReader's readAsArrayBuffer method. Used before encoding
+ * data as msgpack. Calls callback with the blobless data.
+ *
+ * @param {Object} data
+ * @param {Function} callback
+ * @api private
+ */
+
+exports.removeBlobs = function(data, callback) {
+  function _removeBlobs(obj, curKey, containingObject) {
+    if (!obj) return obj;
+
+    // convert any blob
+    if ((withNativeBlob && obj instanceof Blob) ||
+        (withNativeFile && obj instanceof File)) {
+      pendingBlobs++;
+
+      // async filereader
+      var fileReader = new FileReader();
+      fileReader.onload = function() { // this.result == arraybuffer
+        if (containingObject) {
+          containingObject[curKey] = this.result;
+        }
+        else {
+          bloblessData = this.result;
+        }
+
+        // if nothing pending its callback time
+        if(! --pendingBlobs) {
+          callback(bloblessData);
+        }
+      };
+
+      fileReader.readAsArrayBuffer(obj); // blob -> arraybuffer
+    } else if (isArray(obj)) { // handle array
+      for (var i = 0; i < obj.length; i++) {
+        _removeBlobs(obj[i], i, obj);
+      }
+    } else if (typeof obj === 'object' && !isBuf(obj)) { // and object
+      for (var key in obj) {
+        _removeBlobs(obj[key], key, obj);
+      }
+    }
+  }
+
+  var pendingBlobs = 0;
+  var bloblessData = data;
+  _removeBlobs(bloblessData);
+  if (!pendingBlobs) {
+    callback(bloblessData);
+  }
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/node_modules/socket.io-parser/index.js":
+/*!******************************************************************************!*\
+  !*** ./node_modules/socket.io-client/node_modules/socket.io-parser/index.js ***!
+  \******************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/**
+ * Module dependencies.
+ */
+
+var debug = __webpack_require__(/*! debug */ "./node_modules/debug/src/browser.js")('socket.io-parser');
+var Emitter = __webpack_require__(/*! component-emitter */ "./node_modules/component-emitter/index.js");
+var binary = __webpack_require__(/*! ./binary */ "./node_modules/socket.io-client/node_modules/socket.io-parser/binary.js");
+var isArray = __webpack_require__(/*! isarray */ "./node_modules/socket.io-client/node_modules/isarray/index.js");
+var isBuf = __webpack_require__(/*! ./is-buffer */ "./node_modules/socket.io-client/node_modules/socket.io-parser/is-buffer.js");
+
+/**
+ * Protocol version.
+ *
+ * @api public
+ */
+
+exports.protocol = 4;
+
+/**
+ * Packet types.
+ *
+ * @api public
+ */
+
+exports.types = [
+  'CONNECT',
+  'DISCONNECT',
+  'EVENT',
+  'ACK',
+  'ERROR',
+  'BINARY_EVENT',
+  'BINARY_ACK'
+];
+
+/**
+ * Packet type `connect`.
+ *
+ * @api public
+ */
+
+exports.CONNECT = 0;
+
+/**
+ * Packet type `disconnect`.
+ *
+ * @api public
+ */
+
+exports.DISCONNECT = 1;
+
+/**
+ * Packet type `event`.
+ *
+ * @api public
+ */
+
+exports.EVENT = 2;
+
+/**
+ * Packet type `ack`.
+ *
+ * @api public
+ */
+
+exports.ACK = 3;
+
+/**
+ * Packet type `error`.
+ *
+ * @api public
+ */
+
+exports.ERROR = 4;
+
+/**
+ * Packet type 'binary event'
+ *
+ * @api public
+ */
+
+exports.BINARY_EVENT = 5;
+
+/**
+ * Packet type `binary ack`. For acks with binary arguments.
+ *
+ * @api public
+ */
+
+exports.BINARY_ACK = 6;
+
+/**
+ * Encoder constructor.
+ *
+ * @api public
+ */
+
+exports.Encoder = Encoder;
+
+/**
+ * Decoder constructor.
+ *
+ * @api public
+ */
+
+exports.Decoder = Decoder;
+
+/**
+ * A socket.io Encoder instance
+ *
+ * @api public
+ */
+
+function Encoder() {}
+
+var ERROR_PACKET = exports.ERROR + '"encode error"';
+
+/**
+ * Encode a packet as a single string if non-binary, or as a
+ * buffer sequence, depending on packet type.
+ *
+ * @param {Object} obj - packet object
+ * @param {Function} callback - function to handle encodings (likely engine.write)
+ * @return Calls callback with Array of encodings
+ * @api public
+ */
+
+Encoder.prototype.encode = function(obj, callback){
+  debug('encoding packet %j', obj);
+
+  if (exports.BINARY_EVENT === obj.type || exports.BINARY_ACK === obj.type) {
+    encodeAsBinary(obj, callback);
+  } else {
+    var encoding = encodeAsString(obj);
+    callback([encoding]);
+  }
+};
+
+/**
+ * Encode packet as string.
+ *
+ * @param {Object} packet
+ * @return {String} encoded
+ * @api private
+ */
+
+function encodeAsString(obj) {
+
+  // first is type
+  var str = '' + obj.type;
+
+  // attachments if we have them
+  if (exports.BINARY_EVENT === obj.type || exports.BINARY_ACK === obj.type) {
+    str += obj.attachments + '-';
+  }
+
+  // if we have a namespace other than `/`
+  // we append it followed by a comma `,`
+  if (obj.nsp && '/' !== obj.nsp) {
+    str += obj.nsp + ',';
+  }
+
+  // immediately followed by the id
+  if (null != obj.id) {
+    str += obj.id;
+  }
+
+  // json data
+  if (null != obj.data) {
+    var payload = tryStringify(obj.data);
+    if (payload !== false) {
+      str += payload;
+    } else {
+      return ERROR_PACKET;
+    }
+  }
+
+  debug('encoded %j as %s', obj, str);
+  return str;
+}
+
+function tryStringify(str) {
+  try {
+    return JSON.stringify(str);
+  } catch(e){
+    return false;
+  }
+}
+
+/**
+ * Encode packet as 'buffer sequence' by removing blobs, and
+ * deconstructing packet into object with placeholders and
+ * a list of buffers.
+ *
+ * @param {Object} packet
+ * @return {Buffer} encoded
+ * @api private
+ */
+
+function encodeAsBinary(obj, callback) {
+
+  function writeEncoding(bloblessData) {
+    var deconstruction = binary.deconstructPacket(bloblessData);
+    var pack = encodeAsString(deconstruction.packet);
+    var buffers = deconstruction.buffers;
+
+    buffers.unshift(pack); // add packet info to beginning of data list
+    callback(buffers); // write all the buffers
+  }
+
+  binary.removeBlobs(obj, writeEncoding);
+}
+
+/**
+ * A socket.io Decoder instance
+ *
+ * @return {Object} decoder
+ * @api public
+ */
+
+function Decoder() {
+  this.reconstructor = null;
+}
+
+/**
+ * Mix in `Emitter` with Decoder.
+ */
+
+Emitter(Decoder.prototype);
+
+/**
+ * Decodes an encoded packet string into packet JSON.
+ *
+ * @param {String} obj - encoded packet
+ * @return {Object} packet
+ * @api public
+ */
+
+Decoder.prototype.add = function(obj) {
+  var packet;
+  if (typeof obj === 'string') {
+    packet = decodeString(obj);
+    if (exports.BINARY_EVENT === packet.type || exports.BINARY_ACK === packet.type) { // binary packet's json
+      this.reconstructor = new BinaryReconstructor(packet);
+
+      // no attachments, labeled binary but no binary data to follow
+      if (this.reconstructor.reconPack.attachments === 0) {
+        this.emit('decoded', packet);
+      }
+    } else { // non-binary full packet
+      this.emit('decoded', packet);
+    }
+  } else if (isBuf(obj) || obj.base64) { // raw binary data
+    if (!this.reconstructor) {
+      throw new Error('got binary data when not reconstructing a packet');
+    } else {
+      packet = this.reconstructor.takeBinaryData(obj);
+      if (packet) { // received final buffer
+        this.reconstructor = null;
+        this.emit('decoded', packet);
+      }
+    }
+  } else {
+    throw new Error('Unknown type: ' + obj);
+  }
+};
+
+/**
+ * Decode a packet String (JSON data)
+ *
+ * @param {String} str
+ * @return {Object} packet
+ * @api private
+ */
+
+function decodeString(str) {
+  var i = 0;
+  // look up type
+  var p = {
+    type: Number(str.charAt(0))
+  };
+
+  if (null == exports.types[p.type]) {
+    return error('unknown packet type ' + p.type);
+  }
+
+  // look up attachments if type binary
+  if (exports.BINARY_EVENT === p.type || exports.BINARY_ACK === p.type) {
+    var start = i + 1;
+    while (str.charAt(++i) !== '-' && i != str.length) {}
+    var buf = str.substring(start, i);
+    if (buf != Number(buf) || str.charAt(i) !== '-') {
+      throw new Error('Illegal attachments');
+    }
+    p.attachments = Number(buf);
+  }
+
+  // look up namespace (if any)
+  if ('/' === str.charAt(i + 1)) {
+    var start = i + 1;
+    while (++i) {
+      var c = str.charAt(i);
+      if (',' === c) break;
+      if (i === str.length) break;
+    }
+    p.nsp = str.substring(start, i);
+  } else {
+    p.nsp = '/';
+  }
+
+  // look up id
+  var next = str.charAt(i + 1);
+  if ('' !== next && Number(next) == next) {
+    var start = i + 1;
+    while (++i) {
+      var c = str.charAt(i);
+      if (null == c || Number(c) != c) {
+        --i;
+        break;
+      }
+      if (i === str.length) break;
+    }
+    p.id = Number(str.substring(start, i + 1));
+  }
+
+  // look up json data
+  if (str.charAt(++i)) {
+    var payload = tryParse(str.substr(i));
+    var isPayloadValid = payload !== false && (p.type === exports.ERROR || isArray(payload));
+    if (isPayloadValid) {
+      p.data = payload;
+    } else {
+      return error('invalid payload');
+    }
+  }
+
+  debug('decoded %s as %j', str, p);
+  return p;
+}
+
+function tryParse(str) {
+  try {
+    return JSON.parse(str);
+  } catch(e){
+    return false;
+  }
+}
+
+/**
+ * Deallocates a parser's resources
+ *
+ * @api public
+ */
+
+Decoder.prototype.destroy = function() {
+  if (this.reconstructor) {
+    this.reconstructor.finishedReconstruction();
+  }
+};
+
+/**
+ * A manager of a binary event's 'buffer sequence'. Should
+ * be constructed whenever a packet of type BINARY_EVENT is
+ * decoded.
+ *
+ * @param {Object} packet
+ * @return {BinaryReconstructor} initialized reconstructor
+ * @api private
+ */
+
+function BinaryReconstructor(packet) {
+  this.reconPack = packet;
+  this.buffers = [];
+}
+
+/**
+ * Method to be called when binary data received from connection
+ * after a BINARY_EVENT packet.
+ *
+ * @param {Buffer | ArrayBuffer} binData - the raw binary data received
+ * @return {null | Object} returns null if more binary data is expected or
+ *   a reconstructed packet object if all buffers have been received.
+ * @api private
+ */
+
+BinaryReconstructor.prototype.takeBinaryData = function(binData) {
+  this.buffers.push(binData);
+  if (this.buffers.length === this.reconPack.attachments) { // done with buffer list
+    var packet = binary.reconstructPacket(this.reconPack, this.buffers);
+    this.finishedReconstruction();
+    return packet;
+  }
+  return null;
+};
+
+/**
+ * Cleans up binary packet reconstruction variables.
+ *
+ * @api private
+ */
+
+BinaryReconstructor.prototype.finishedReconstruction = function() {
+  this.reconPack = null;
+  this.buffers = [];
+};
+
+function error(msg) {
+  return {
+    type: exports.ERROR,
+    data: 'parser error: ' + msg
+  };
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/socket.io-client/node_modules/socket.io-parser/is-buffer.js":
+/*!**********************************************************************************!*\
+  !*** ./node_modules/socket.io-client/node_modules/socket.io-parser/is-buffer.js ***!
+  \**********************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+module.exports = isBuf;
+
+var withNativeBuffer = typeof Buffer === 'function' && typeof Buffer.isBuffer === 'function';
+var withNativeArrayBuffer = typeof ArrayBuffer === 'function';
+
+var isView = function (obj) {
+  return typeof ArrayBuffer.isView === 'function' ? ArrayBuffer.isView(obj) : (obj.buffer instanceof ArrayBuffer);
+};
+
+/**
+ * Returns true if obj is a buffer or an arraybuffer.
+ *
+ * @api private
+ */
+
+function isBuf(obj) {
+  return (withNativeBuffer && Buffer.isBuffer(obj)) ||
+          (withNativeArrayBuffer && (obj instanceof ArrayBuffer || isView(obj)));
+}
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../buffer/index.js */ "./node_modules/buffer/index.js").Buffer))
+
+/***/ }),
+
 /***/ "./node_modules/timers-browserify/main.js":
 /*!************************************************!*\
   !*** ./node_modules/timers-browserify/main.js ***!
@@ -38197,6 +47286,48 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
                          (this && this.clearImmediate);
 
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
+
+/***/ }),
+
+/***/ "./node_modules/to-array/index.js":
+/*!****************************************!*\
+  !*** ./node_modules/to-array/index.js ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = toArray
+
+function toArray(list, index) {
+    var array = []
+
+    index = index || 0
+
+    for (var i = index || 0; i < list.length; i++) {
+        array[i - index] = list[i]
+    }
+
+    return array
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/vue-bootstrap4-table/dist/vue-bootstrap4-table.esm.js":
+/*!****************************************************************************!*\
+  !*** ./node_modules/vue-bootstrap4-table/dist/vue-bootstrap4-table.esm.js ***!
+  \****************************************************************************/
+/*! exports provided: default, install */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* WEBPACK VAR INJECTION */(function(global) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "install", function() { return install; });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.common.js");
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
+function baseFindIndex(e,t,n,r){for(var i=e.length,a=n+(r?1:-1);r?a--:++a<i;)if(t(e[a],a,e))return a;return-1}var _baseFindIndex=baseFindIndex;function listCacheClear(){this.__data__=[],this.size=0}var _listCacheClear=listCacheClear;function eq(e,t){return e===t||e!=e&&t!=t}var eq_1=eq;function assocIndexOf(e,t){for(var n=e.length;n--;)if(eq_1(e[n][0],t))return n;return-1}var _assocIndexOf=assocIndexOf,arrayProto=Array.prototype,splice=arrayProto.splice;function listCacheDelete(e){var t=this.__data__,n=_assocIndexOf(t,e);return!(n<0)&&(n==t.length-1?t.pop():splice.call(t,n,1),--this.size,!0)}var _listCacheDelete=listCacheDelete;function listCacheGet(e){var t=this.__data__,n=_assocIndexOf(t,e);return n<0?void 0:t[n][1]}var _listCacheGet=listCacheGet;function listCacheHas(e){return _assocIndexOf(this.__data__,e)>-1}var _listCacheHas=listCacheHas;function listCacheSet(e,t){var n=this.__data__,r=_assocIndexOf(n,e);return r<0?(++this.size,n.push([e,t])):n[r][1]=t,this}var _listCacheSet=listCacheSet;function ListCache(e){var t=-1,n=null==e?0:e.length;for(this.clear();++t<n;){var r=e[t];this.set(r[0],r[1])}}ListCache.prototype.clear=_listCacheClear,ListCache.prototype.delete=_listCacheDelete,ListCache.prototype.get=_listCacheGet,ListCache.prototype.has=_listCacheHas,ListCache.prototype.set=_listCacheSet;var _ListCache=ListCache;function stackClear(){this.__data__=new _ListCache,this.size=0}var _stackClear=stackClear;function stackDelete(e){var t=this.__data__,n=t.delete(e);return this.size=t.size,n}var _stackDelete=stackDelete;function stackGet(e){return this.__data__.get(e)}var _stackGet=stackGet;function stackHas(e){return this.__data__.has(e)}var _stackHas=stackHas,commonjsGlobal="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:{};function createCommonjsModule(e,t){return e(t={exports:{}},t.exports),t.exports}var freeGlobal="object"==typeof commonjsGlobal&&commonjsGlobal&&commonjsGlobal.Object===Object&&commonjsGlobal,_freeGlobal=freeGlobal,freeSelf="object"==typeof self&&self&&self.Object===Object&&self,root=_freeGlobal||freeSelf||Function("return this")(),_root=root,Symbol=_root.Symbol,_Symbol=Symbol,objectProto=Object.prototype,hasOwnProperty=objectProto.hasOwnProperty,nativeObjectToString=objectProto.toString,symToStringTag=_Symbol?_Symbol.toStringTag:void 0;function getRawTag(e){var t=hasOwnProperty.call(e,symToStringTag),n=e[symToStringTag];try{e[symToStringTag]=void 0}catch(e){}var r=nativeObjectToString.call(e);return t?e[symToStringTag]=n:delete e[symToStringTag],r}var _getRawTag=getRawTag,objectProto$1=Object.prototype,nativeObjectToString$1=objectProto$1.toString;function objectToString(e){return nativeObjectToString$1.call(e)}var _objectToString=objectToString,nullTag="[object Null]",undefinedTag="[object Undefined]",symToStringTag$1=_Symbol?_Symbol.toStringTag:void 0;function baseGetTag(e){return null==e?void 0===e?undefinedTag:nullTag:symToStringTag$1&&symToStringTag$1 in Object(e)?_getRawTag(e):_objectToString(e)}var _baseGetTag=baseGetTag;function isObject(e){var t=typeof e;return null!=e&&("object"==t||"function"==t)}var isObject_1=isObject,asyncTag="[object AsyncFunction]",funcTag="[object Function]",genTag="[object GeneratorFunction]",proxyTag="[object Proxy]";function isFunction(e){if(!isObject_1(e))return!1;var t=_baseGetTag(e);return t==funcTag||t==genTag||t==asyncTag||t==proxyTag}var isFunction_1=isFunction,coreJsData=_root["__core-js_shared__"],_coreJsData=coreJsData,maskSrcKey=function(){var e=/[^.]+$/.exec(_coreJsData&&_coreJsData.keys&&_coreJsData.keys.IE_PROTO||"");return e?"Symbol(src)_1."+e:""}();function isMasked(e){return!!maskSrcKey&&maskSrcKey in e}var _isMasked=isMasked,funcProto=Function.prototype,funcToString=funcProto.toString;function toSource(e){if(null!=e){try{return funcToString.call(e)}catch(e){}try{return e+""}catch(e){}}return""}var _toSource=toSource,reRegExpChar=/[\\^$.*+?()[\]{}|]/g,reIsHostCtor=/^\[object .+?Constructor\]$/,funcProto$1=Function.prototype,objectProto$2=Object.prototype,funcToString$1=funcProto$1.toString,hasOwnProperty$1=objectProto$2.hasOwnProperty,reIsNative=RegExp("^"+funcToString$1.call(hasOwnProperty$1).replace(reRegExpChar,"\\$&").replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g,"$1.*?")+"$");function baseIsNative(e){return!(!isObject_1(e)||_isMasked(e))&&(isFunction_1(e)?reIsNative:reIsHostCtor).test(_toSource(e))}var _baseIsNative=baseIsNative;function getValue(e,t){return null==e?void 0:e[t]}var _getValue=getValue;function getNative(e,t){var n=_getValue(e,t);return _baseIsNative(n)?n:void 0}var _getNative=getNative,Map=_getNative(_root,"Map"),_Map=Map,nativeCreate=_getNative(Object,"create"),_nativeCreate=nativeCreate;function hashClear(){this.__data__=_nativeCreate?_nativeCreate(null):{},this.size=0}var _hashClear=hashClear;function hashDelete(e){var t=this.has(e)&&delete this.__data__[e];return this.size-=t?1:0,t}var _hashDelete=hashDelete,HASH_UNDEFINED="__lodash_hash_undefined__",objectProto$3=Object.prototype,hasOwnProperty$2=objectProto$3.hasOwnProperty;function hashGet(e){var t=this.__data__;if(_nativeCreate){var n=t[e];return n===HASH_UNDEFINED?void 0:n}return hasOwnProperty$2.call(t,e)?t[e]:void 0}var _hashGet=hashGet,objectProto$4=Object.prototype,hasOwnProperty$3=objectProto$4.hasOwnProperty;function hashHas(e){var t=this.__data__;return _nativeCreate?void 0!==t[e]:hasOwnProperty$3.call(t,e)}var _hashHas=hashHas,HASH_UNDEFINED$1="__lodash_hash_undefined__";function hashSet(e,t){var n=this.__data__;return this.size+=this.has(e)?0:1,n[e]=_nativeCreate&&void 0===t?HASH_UNDEFINED$1:t,this}var _hashSet=hashSet;function Hash(e){var t=-1,n=null==e?0:e.length;for(this.clear();++t<n;){var r=e[t];this.set(r[0],r[1])}}Hash.prototype.clear=_hashClear,Hash.prototype.delete=_hashDelete,Hash.prototype.get=_hashGet,Hash.prototype.has=_hashHas,Hash.prototype.set=_hashSet;var _Hash=Hash;function mapCacheClear(){this.size=0,this.__data__={hash:new _Hash,map:new(_Map||_ListCache),string:new _Hash}}var _mapCacheClear=mapCacheClear;function isKeyable(e){var t=typeof e;return"string"==t||"number"==t||"symbol"==t||"boolean"==t?"__proto__"!==e:null===e}var _isKeyable=isKeyable;function getMapData(e,t){var n=e.__data__;return _isKeyable(t)?n["string"==typeof t?"string":"hash"]:n.map}var _getMapData=getMapData;function mapCacheDelete(e){var t=_getMapData(this,e).delete(e);return this.size-=t?1:0,t}var _mapCacheDelete=mapCacheDelete;function mapCacheGet(e){return _getMapData(this,e).get(e)}var _mapCacheGet=mapCacheGet;function mapCacheHas(e){return _getMapData(this,e).has(e)}var _mapCacheHas=mapCacheHas;function mapCacheSet(e,t){var n=_getMapData(this,e),r=n.size;return n.set(e,t),this.size+=n.size==r?0:1,this}var _mapCacheSet=mapCacheSet;function MapCache(e){var t=-1,n=null==e?0:e.length;for(this.clear();++t<n;){var r=e[t];this.set(r[0],r[1])}}MapCache.prototype.clear=_mapCacheClear,MapCache.prototype.delete=_mapCacheDelete,MapCache.prototype.get=_mapCacheGet,MapCache.prototype.has=_mapCacheHas,MapCache.prototype.set=_mapCacheSet;var _MapCache=MapCache,LARGE_ARRAY_SIZE=200;function stackSet(e,t){var n=this.__data__;if(n instanceof _ListCache){var r=n.__data__;if(!_Map||r.length<LARGE_ARRAY_SIZE-1)return r.push([e,t]),this.size=++n.size,this;n=this.__data__=new _MapCache(r)}return n.set(e,t),this.size=n.size,this}var _stackSet=stackSet;function Stack(e){var t=this.__data__=new _ListCache(e);this.size=t.size}Stack.prototype.clear=_stackClear,Stack.prototype.delete=_stackDelete,Stack.prototype.get=_stackGet,Stack.prototype.has=_stackHas,Stack.prototype.set=_stackSet;var _Stack=Stack,HASH_UNDEFINED$2="__lodash_hash_undefined__";function setCacheAdd(e){return this.__data__.set(e,HASH_UNDEFINED$2),this}var _setCacheAdd=setCacheAdd;function setCacheHas(e){return this.__data__.has(e)}var _setCacheHas=setCacheHas;function SetCache(e){var t=-1,n=null==e?0:e.length;for(this.__data__=new _MapCache;++t<n;)this.add(e[t])}SetCache.prototype.add=SetCache.prototype.push=_setCacheAdd,SetCache.prototype.has=_setCacheHas;var _SetCache=SetCache;function arraySome(e,t){for(var n=-1,r=null==e?0:e.length;++n<r;)if(t(e[n],n,e))return!0;return!1}var _arraySome=arraySome;function cacheHas(e,t){return e.has(t)}var _cacheHas=cacheHas,COMPARE_PARTIAL_FLAG=1,COMPARE_UNORDERED_FLAG=2;function equalArrays(e,t,n,r,i,a){var s=n&COMPARE_PARTIAL_FLAG,o=e.length,l=t.length;if(o!=l&&!(s&&l>o))return!1;var c=a.get(e);if(c&&a.get(t))return c==t;var u=-1,_=!0,d=n&COMPARE_UNORDERED_FLAG?new _SetCache:void 0;for(a.set(e,t),a.set(t,e);++u<o;){var h=e[u],p=t[u];if(r)var f=s?r(p,h,u,t,e,a):r(h,p,u,e,t,a);if(void 0!==f){if(f)continue;_=!1;break}if(d){if(!_arraySome(t,function(e,t){if(!_cacheHas(d,t)&&(h===e||i(h,e,n,r,a)))return d.push(t)})){_=!1;break}}else if(h!==p&&!i(h,p,n,r,a)){_=!1;break}}return a.delete(e),a.delete(t),_}var _equalArrays=equalArrays,Uint8Array=_root.Uint8Array,_Uint8Array=Uint8Array;function mapToArray(e){var t=-1,n=Array(e.size);return e.forEach(function(e,r){n[++t]=[r,e]}),n}var _mapToArray=mapToArray;function setToArray(e){var t=-1,n=Array(e.size);return e.forEach(function(e){n[++t]=e}),n}var _setToArray=setToArray,COMPARE_PARTIAL_FLAG$1=1,COMPARE_UNORDERED_FLAG$1=2,boolTag="[object Boolean]",dateTag="[object Date]",errorTag="[object Error]",mapTag="[object Map]",numberTag="[object Number]",regexpTag="[object RegExp]",setTag="[object Set]",stringTag="[object String]",symbolTag="[object Symbol]",arrayBufferTag="[object ArrayBuffer]",dataViewTag="[object DataView]",symbolProto=_Symbol?_Symbol.prototype:void 0,symbolValueOf=symbolProto?symbolProto.valueOf:void 0;function equalByTag(e,t,n,r,i,a,s){switch(n){case dataViewTag:if(e.byteLength!=t.byteLength||e.byteOffset!=t.byteOffset)return!1;e=e.buffer,t=t.buffer;case arrayBufferTag:return!(e.byteLength!=t.byteLength||!a(new _Uint8Array(e),new _Uint8Array(t)));case boolTag:case dateTag:case numberTag:return eq_1(+e,+t);case errorTag:return e.name==t.name&&e.message==t.message;case regexpTag:case stringTag:return e==t+"";case mapTag:var o=_mapToArray;case setTag:var l=r&COMPARE_PARTIAL_FLAG$1;if(o||(o=_setToArray),e.size!=t.size&&!l)return!1;var c=s.get(e);if(c)return c==t;r|=COMPARE_UNORDERED_FLAG$1,s.set(e,t);var u=_equalArrays(o(e),o(t),r,i,a,s);return s.delete(e),u;case symbolTag:if(symbolValueOf)return symbolValueOf.call(e)==symbolValueOf.call(t)}return!1}var _equalByTag=equalByTag;function arrayPush(e,t){for(var n=-1,r=t.length,i=e.length;++n<r;)e[i+n]=t[n];return e}var _arrayPush=arrayPush,isArray=Array.isArray,isArray_1=isArray;function baseGetAllKeys(e,t,n){var r=t(e);return isArray_1(e)?r:_arrayPush(r,n(e))}var _baseGetAllKeys=baseGetAllKeys;function arrayFilter(e,t){for(var n=-1,r=null==e?0:e.length,i=0,a=[];++n<r;){var s=e[n];t(s,n,e)&&(a[i++]=s)}return a}var _arrayFilter=arrayFilter;function stubArray(){return[]}var stubArray_1=stubArray,objectProto$5=Object.prototype,propertyIsEnumerable=objectProto$5.propertyIsEnumerable,nativeGetSymbols=Object.getOwnPropertySymbols,getSymbols=nativeGetSymbols?function(e){return null==e?[]:(e=Object(e),_arrayFilter(nativeGetSymbols(e),function(t){return propertyIsEnumerable.call(e,t)}))}:stubArray_1,_getSymbols=getSymbols;function baseTimes(e,t){for(var n=-1,r=Array(e);++n<e;)r[n]=t(n);return r}var _baseTimes=baseTimes;function isObjectLike(e){return null!=e&&"object"==typeof e}var isObjectLike_1=isObjectLike,argsTag="[object Arguments]";function baseIsArguments(e){return isObjectLike_1(e)&&_baseGetTag(e)==argsTag}var _baseIsArguments=baseIsArguments,objectProto$6=Object.prototype,hasOwnProperty$4=objectProto$6.hasOwnProperty,propertyIsEnumerable$1=objectProto$6.propertyIsEnumerable,isArguments=_baseIsArguments(function(){return arguments}())?_baseIsArguments:function(e){return isObjectLike_1(e)&&hasOwnProperty$4.call(e,"callee")&&!propertyIsEnumerable$1.call(e,"callee")},isArguments_1=isArguments;function stubFalse(){return!1}var stubFalse_1=stubFalse,isBuffer_1=createCommonjsModule(function(e,t){var n=t&&!t.nodeType&&t,r=n&&e&&!e.nodeType&&e,i=r&&r.exports===n?_root.Buffer:void 0,a=(i?i.isBuffer:void 0)||stubFalse_1;e.exports=a}),MAX_SAFE_INTEGER=9007199254740991,reIsUint=/^(?:0|[1-9]\d*)$/;function isIndex(e,t){var n=typeof e;return!!(t=null==t?MAX_SAFE_INTEGER:t)&&("number"==n||"symbol"!=n&&reIsUint.test(e))&&e>-1&&e%1==0&&e<t}var _isIndex=isIndex,MAX_SAFE_INTEGER$1=9007199254740991;function isLength(e){return"number"==typeof e&&e>-1&&e%1==0&&e<=MAX_SAFE_INTEGER$1}var isLength_1=isLength,argsTag$1="[object Arguments]",arrayTag="[object Array]",boolTag$1="[object Boolean]",dateTag$1="[object Date]",errorTag$1="[object Error]",funcTag$1="[object Function]",mapTag$1="[object Map]",numberTag$1="[object Number]",objectTag="[object Object]",regexpTag$1="[object RegExp]",setTag$1="[object Set]",stringTag$1="[object String]",weakMapTag="[object WeakMap]",arrayBufferTag$1="[object ArrayBuffer]",dataViewTag$1="[object DataView]",float32Tag="[object Float32Array]",float64Tag="[object Float64Array]",int8Tag="[object Int8Array]",int16Tag="[object Int16Array]",int32Tag="[object Int32Array]",uint8Tag="[object Uint8Array]",uint8ClampedTag="[object Uint8ClampedArray]",uint16Tag="[object Uint16Array]",uint32Tag="[object Uint32Array]",typedArrayTags={};function baseIsTypedArray(e){return isObjectLike_1(e)&&isLength_1(e.length)&&!!typedArrayTags[_baseGetTag(e)]}typedArrayTags[float32Tag]=typedArrayTags[float64Tag]=typedArrayTags[int8Tag]=typedArrayTags[int16Tag]=typedArrayTags[int32Tag]=typedArrayTags[uint8Tag]=typedArrayTags[uint8ClampedTag]=typedArrayTags[uint16Tag]=typedArrayTags[uint32Tag]=!0,typedArrayTags[argsTag$1]=typedArrayTags[arrayTag]=typedArrayTags[arrayBufferTag$1]=typedArrayTags[boolTag$1]=typedArrayTags[dataViewTag$1]=typedArrayTags[dateTag$1]=typedArrayTags[errorTag$1]=typedArrayTags[funcTag$1]=typedArrayTags[mapTag$1]=typedArrayTags[numberTag$1]=typedArrayTags[objectTag]=typedArrayTags[regexpTag$1]=typedArrayTags[setTag$1]=typedArrayTags[stringTag$1]=typedArrayTags[weakMapTag]=!1;var _baseIsTypedArray=baseIsTypedArray;function baseUnary(e){return function(t){return e(t)}}var _baseUnary=baseUnary,_nodeUtil=createCommonjsModule(function(e,t){var n=t&&!t.nodeType&&t,r=n&&e&&!e.nodeType&&e,i=r&&r.exports===n&&_freeGlobal.process,a=function(){try{var e=r&&r.require&&r.require("util").types;return e||i&&i.binding&&i.binding("util")}catch(e){}}();e.exports=a}),nodeIsTypedArray=_nodeUtil&&_nodeUtil.isTypedArray,isTypedArray=nodeIsTypedArray?_baseUnary(nodeIsTypedArray):_baseIsTypedArray,isTypedArray_1=isTypedArray,objectProto$7=Object.prototype,hasOwnProperty$5=objectProto$7.hasOwnProperty;function arrayLikeKeys(e,t){var n=isArray_1(e),r=!n&&isArguments_1(e),i=!n&&!r&&isBuffer_1(e),a=!n&&!r&&!i&&isTypedArray_1(e),s=n||r||i||a,o=s?_baseTimes(e.length,String):[],l=o.length;for(var c in e)!t&&!hasOwnProperty$5.call(e,c)||s&&("length"==c||i&&("offset"==c||"parent"==c)||a&&("buffer"==c||"byteLength"==c||"byteOffset"==c)||_isIndex(c,l))||o.push(c);return o}var _arrayLikeKeys=arrayLikeKeys,objectProto$8=Object.prototype;function isPrototype(e){var t=e&&e.constructor;return e===("function"==typeof t&&t.prototype||objectProto$8)}var _isPrototype=isPrototype;function overArg(e,t){return function(n){return e(t(n))}}var _overArg=overArg,nativeKeys=_overArg(Object.keys,Object),_nativeKeys=nativeKeys,objectProto$9=Object.prototype,hasOwnProperty$6=objectProto$9.hasOwnProperty;function baseKeys(e){if(!_isPrototype(e))return _nativeKeys(e);var t=[];for(var n in Object(e))hasOwnProperty$6.call(e,n)&&"constructor"!=n&&t.push(n);return t}var _baseKeys=baseKeys;function isArrayLike(e){return null!=e&&isLength_1(e.length)&&!isFunction_1(e)}var isArrayLike_1=isArrayLike;function keys(e){return isArrayLike_1(e)?_arrayLikeKeys(e):_baseKeys(e)}var keys_1=keys;function getAllKeys(e){return _baseGetAllKeys(e,keys_1,_getSymbols)}var _getAllKeys=getAllKeys,COMPARE_PARTIAL_FLAG$2=1,objectProto$a=Object.prototype,hasOwnProperty$7=objectProto$a.hasOwnProperty;function equalObjects(e,t,n,r,i,a){var s=n&COMPARE_PARTIAL_FLAG$2,o=_getAllKeys(e),l=o.length;if(l!=_getAllKeys(t).length&&!s)return!1;for(var c=l;c--;){var u=o[c];if(!(s?u in t:hasOwnProperty$7.call(t,u)))return!1}var _=a.get(e);if(_&&a.get(t))return _==t;var d=!0;a.set(e,t),a.set(t,e);for(var h=s;++c<l;){var p=e[u=o[c]],f=t[u];if(r)var m=s?r(f,p,u,t,e,a):r(p,f,u,e,t,a);if(!(void 0===m?p===f||i(p,f,n,r,a):m)){d=!1;break}h||(h="constructor"==u)}if(d&&!h){var g=e.constructor,v=t.constructor;g!=v&&"constructor"in e&&"constructor"in t&&!("function"==typeof g&&g instanceof g&&"function"==typeof v&&v instanceof v)&&(d=!1)}return a.delete(e),a.delete(t),d}var _equalObjects=equalObjects,DataView=_getNative(_root,"DataView"),_DataView=DataView,Promise=_getNative(_root,"Promise"),_Promise=Promise,Set=_getNative(_root,"Set"),_Set=Set,WeakMap=_getNative(_root,"WeakMap"),_WeakMap=WeakMap,mapTag$2="[object Map]",objectTag$1="[object Object]",promiseTag="[object Promise]",setTag$2="[object Set]",weakMapTag$1="[object WeakMap]",dataViewTag$2="[object DataView]",dataViewCtorString=_toSource(_DataView),mapCtorString=_toSource(_Map),promiseCtorString=_toSource(_Promise),setCtorString=_toSource(_Set),weakMapCtorString=_toSource(_WeakMap),getTag=_baseGetTag;(_DataView&&getTag(new _DataView(new ArrayBuffer(1)))!=dataViewTag$2||_Map&&getTag(new _Map)!=mapTag$2||_Promise&&getTag(_Promise.resolve())!=promiseTag||_Set&&getTag(new _Set)!=setTag$2||_WeakMap&&getTag(new _WeakMap)!=weakMapTag$1)&&(getTag=function(e){var t=_baseGetTag(e),n=t==objectTag$1?e.constructor:void 0,r=n?_toSource(n):"";if(r)switch(r){case dataViewCtorString:return dataViewTag$2;case mapCtorString:return mapTag$2;case promiseCtorString:return promiseTag;case setCtorString:return setTag$2;case weakMapCtorString:return weakMapTag$1}return t});var _getTag=getTag,COMPARE_PARTIAL_FLAG$3=1,argsTag$2="[object Arguments]",arrayTag$1="[object Array]",objectTag$2="[object Object]",objectProto$b=Object.prototype,hasOwnProperty$8=objectProto$b.hasOwnProperty;function baseIsEqualDeep(e,t,n,r,i,a){var s=isArray_1(e),o=isArray_1(t),l=s?arrayTag$1:_getTag(e),c=o?arrayTag$1:_getTag(t),u=(l=l==argsTag$2?objectTag$2:l)==objectTag$2,_=(c=c==argsTag$2?objectTag$2:c)==objectTag$2,d=l==c;if(d&&isBuffer_1(e)){if(!isBuffer_1(t))return!1;s=!0,u=!1}if(d&&!u)return a||(a=new _Stack),s||isTypedArray_1(e)?_equalArrays(e,t,n,r,i,a):_equalByTag(e,t,l,n,r,i,a);if(!(n&COMPARE_PARTIAL_FLAG$3)){var h=u&&hasOwnProperty$8.call(e,"__wrapped__"),p=_&&hasOwnProperty$8.call(t,"__wrapped__");if(h||p){var f=h?e.value():e,m=p?t.value():t;return a||(a=new _Stack),i(f,m,n,r,a)}}return!!d&&(a||(a=new _Stack),_equalObjects(e,t,n,r,i,a))}var _baseIsEqualDeep=baseIsEqualDeep;function baseIsEqual(e,t,n,r,i){return e===t||(null==e||null==t||!isObjectLike_1(e)&&!isObjectLike_1(t)?e!=e&&t!=t:_baseIsEqualDeep(e,t,n,r,baseIsEqual,i))}var _baseIsEqual=baseIsEqual,COMPARE_PARTIAL_FLAG$4=1,COMPARE_UNORDERED_FLAG$2=2;function baseIsMatch(e,t,n,r){var i=n.length,a=i,s=!r;if(null==e)return!a;for(e=Object(e);i--;){var o=n[i];if(s&&o[2]?o[1]!==e[o[0]]:!(o[0]in e))return!1}for(;++i<a;){var l=(o=n[i])[0],c=e[l],u=o[1];if(s&&o[2]){if(void 0===c&&!(l in e))return!1}else{var _=new _Stack;if(r)var d=r(c,u,l,e,t,_);if(!(void 0===d?_baseIsEqual(u,c,COMPARE_PARTIAL_FLAG$4|COMPARE_UNORDERED_FLAG$2,r,_):d))return!1}}return!0}var _baseIsMatch=baseIsMatch;function isStrictComparable(e){return e==e&&!isObject_1(e)}var _isStrictComparable=isStrictComparable;function getMatchData(e){for(var t=keys_1(e),n=t.length;n--;){var r=t[n],i=e[r];t[n]=[r,i,_isStrictComparable(i)]}return t}var _getMatchData=getMatchData;function matchesStrictComparable(e,t){return function(n){return null!=n&&(n[e]===t&&(void 0!==t||e in Object(n)))}}var _matchesStrictComparable=matchesStrictComparable;function baseMatches(e){var t=_getMatchData(e);return 1==t.length&&t[0][2]?_matchesStrictComparable(t[0][0],t[0][1]):function(n){return n===e||_baseIsMatch(n,e,t)}}var _baseMatches=baseMatches,symbolTag$1="[object Symbol]";function isSymbol(e){return"symbol"==typeof e||isObjectLike_1(e)&&_baseGetTag(e)==symbolTag$1}var isSymbol_1=isSymbol,reIsDeepProp=/\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,reIsPlainProp=/^\w*$/;function isKey(e,t){if(isArray_1(e))return!1;var n=typeof e;return!("number"!=n&&"symbol"!=n&&"boolean"!=n&&null!=e&&!isSymbol_1(e))||(reIsPlainProp.test(e)||!reIsDeepProp.test(e)||null!=t&&e in Object(t))}var _isKey=isKey,FUNC_ERROR_TEXT="Expected a function";function memoize(e,t){if("function"!=typeof e||null!=t&&"function"!=typeof t)throw new TypeError(FUNC_ERROR_TEXT);var n=function(){var r=arguments,i=t?t.apply(this,r):r[0],a=n.cache;if(a.has(i))return a.get(i);var s=e.apply(this,r);return n.cache=a.set(i,s)||a,s};return n.cache=new(memoize.Cache||_MapCache),n}memoize.Cache=_MapCache;var memoize_1=memoize,MAX_MEMOIZE_SIZE=500;function memoizeCapped(e){var t=memoize_1(e,function(e){return n.size===MAX_MEMOIZE_SIZE&&n.clear(),e}),n=t.cache;return t}var _memoizeCapped=memoizeCapped,rePropName=/[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g,reEscapeChar=/\\(\\)?/g,stringToPath=_memoizeCapped(function(e){var t=[];return 46===e.charCodeAt(0)&&t.push(""),e.replace(rePropName,function(e,n,r,i){t.push(r?i.replace(reEscapeChar,"$1"):n||e)}),t}),_stringToPath=stringToPath;function arrayMap(e,t){for(var n=-1,r=null==e?0:e.length,i=Array(r);++n<r;)i[n]=t(e[n],n,e);return i}var _arrayMap=arrayMap,INFINITY=1/0,symbolProto$1=_Symbol?_Symbol.prototype:void 0,symbolToString=symbolProto$1?symbolProto$1.toString:void 0;function baseToString(e){if("string"==typeof e)return e;if(isArray_1(e))return _arrayMap(e,baseToString)+"";if(isSymbol_1(e))return symbolToString?symbolToString.call(e):"";var t=e+"";return"0"==t&&1/e==-INFINITY?"-0":t}var _baseToString=baseToString;function toString(e){return null==e?"":_baseToString(e)}var toString_1=toString;function castPath(e,t){return isArray_1(e)?e:_isKey(e,t)?[e]:_stringToPath(toString_1(e))}var _castPath=castPath,INFINITY$1=1/0;function toKey(e){if("string"==typeof e||isSymbol_1(e))return e;var t=e+"";return"0"==t&&1/e==-INFINITY$1?"-0":t}var _toKey=toKey;function baseGet(e,t){for(var n=0,r=(t=_castPath(t,e)).length;null!=e&&n<r;)e=e[_toKey(t[n++])];return n&&n==r?e:void 0}var _baseGet=baseGet;function get(e,t,n){var r=null==e?void 0:_baseGet(e,t);return void 0===r?n:r}var get_1=get;function baseHasIn(e,t){return null!=e&&t in Object(e)}var _baseHasIn=baseHasIn;function hasPath(e,t,n){for(var r=-1,i=(t=_castPath(t,e)).length,a=!1;++r<i;){var s=_toKey(t[r]);if(!(a=null!=e&&n(e,s)))break;e=e[s]}return a||++r!=i?a:!!(i=null==e?0:e.length)&&isLength_1(i)&&_isIndex(s,i)&&(isArray_1(e)||isArguments_1(e))}var _hasPath=hasPath;function hasIn(e,t){return null!=e&&_hasPath(e,t,_baseHasIn)}var hasIn_1=hasIn,COMPARE_PARTIAL_FLAG$5=1,COMPARE_UNORDERED_FLAG$3=2;function baseMatchesProperty(e,t){return _isKey(e)&&_isStrictComparable(t)?_matchesStrictComparable(_toKey(e),t):function(n){var r=get_1(n,e);return void 0===r&&r===t?hasIn_1(n,e):_baseIsEqual(t,r,COMPARE_PARTIAL_FLAG$5|COMPARE_UNORDERED_FLAG$3)}}var _baseMatchesProperty=baseMatchesProperty;function identity(e){return e}var identity_1=identity;function baseProperty(e){return function(t){return null==t?void 0:t[e]}}var _baseProperty=baseProperty;function basePropertyDeep(e){return function(t){return _baseGet(t,e)}}var _basePropertyDeep=basePropertyDeep;function property(e){return _isKey(e)?_baseProperty(_toKey(e)):_basePropertyDeep(e)}var property_1=property;function baseIteratee(e){return"function"==typeof e?e:null==e?identity_1:"object"==typeof e?isArray_1(e)?_baseMatchesProperty(e[0],e[1]):_baseMatches(e):property_1(e)}var _baseIteratee=baseIteratee,NAN=NaN,reTrim=/^\s+|\s+$/g,reIsBadHex=/^[-+]0x[0-9a-f]+$/i,reIsBinary=/^0b[01]+$/i,reIsOctal=/^0o[0-7]+$/i,freeParseInt=parseInt;function toNumber(e){if("number"==typeof e)return e;if(isSymbol_1(e))return NAN;if(isObject_1(e)){var t="function"==typeof e.valueOf?e.valueOf():e;e=isObject_1(t)?t+"":t}if("string"!=typeof e)return 0===e?e:+e;e=e.replace(reTrim,"");var n=reIsBinary.test(e);return n||reIsOctal.test(e)?freeParseInt(e.slice(2),n?2:8):reIsBadHex.test(e)?NAN:+e}var toNumber_1=toNumber,INFINITY$2=1/0,MAX_INTEGER=1.7976931348623157e308;function toFinite(e){return e?(e=toNumber_1(e))===INFINITY$2||e===-INFINITY$2?(e<0?-1:1)*MAX_INTEGER:e==e?e:0:0===e?e:0}var toFinite_1=toFinite;function toInteger(e){var t=toFinite_1(e),n=t%1;return t==t?n?t-n:t:0}var toInteger_1=toInteger,nativeMax=Math.max;function findIndex(e,t,n){var r=null==e?0:e.length;if(!r)return-1;var i=null==n?0:toInteger_1(n);return i<0&&(i=nativeMax(r+i,0)),_baseFindIndex(e,_baseIteratee(t,3),i)}var findIndex_1=findIndex,nativeCeil=Math.ceil,nativeMax$1=Math.max;function baseRange(e,t,n,r){for(var i=-1,a=nativeMax$1(nativeCeil((t-e)/(n||1)),0),s=Array(a);a--;)s[r?a:++i]=e,e+=n;return s}var _baseRange=baseRange;function isIterateeCall(e,t,n){if(!isObject_1(n))return!1;var r=typeof t;return!!("number"==r?isArrayLike_1(n)&&_isIndex(t,n.length):"string"==r&&t in n)&&eq_1(n[t],e)}var _isIterateeCall=isIterateeCall;function createRange(e){return function(t,n,r){return r&&"number"!=typeof r&&_isIterateeCall(t,n,r)&&(n=r=void 0),t=toFinite_1(t),void 0===n?(n=t,t=0):n=toFinite_1(n),r=void 0===r?t<n?1:-1:toFinite_1(r),_baseRange(t,n,r,e)}}var _createRange=createRange,range=_createRange(),range_1=range;function createBaseFor(e){return function(t,n,r){for(var i=-1,a=Object(t),s=r(t),o=s.length;o--;){var l=s[e?o:++i];if(!1===n(a[l],l,a))break}return t}}var _createBaseFor=createBaseFor,baseFor=_createBaseFor(),_baseFor=baseFor;function baseForOwn(e,t){return e&&_baseFor(e,t,keys_1)}var _baseForOwn=baseForOwn;function createBaseEach(e,t){return function(n,r){if(null==n)return n;if(!isArrayLike_1(n))return e(n,r);for(var i=n.length,a=t?i:-1,s=Object(n);(t?a--:++a<i)&&!1!==r(s[a],a,s););return n}}var _createBaseEach=createBaseEach,baseEach=_createBaseEach(_baseForOwn),_baseEach=baseEach;function baseFilter(e,t){var n=[];return _baseEach(e,function(e,r,i){t(e,r,i)&&n.push(e)}),n}var _baseFilter=baseFilter;function filter(e,t){return(isArray_1(e)?_arrayFilter:_baseFilter)(e,_baseIteratee(t,3))}var filter_1=filter;function baseIsNaN(e){return e!=e}var _baseIsNaN=baseIsNaN;function strictIndexOf(e,t,n){for(var r=n-1,i=e.length;++r<i;)if(e[r]===t)return r;return-1}var _strictIndexOf=strictIndexOf;function baseIndexOf(e,t,n){return t==t?_strictIndexOf(e,t,n):_baseFindIndex(e,_baseIsNaN,n)}var _baseIndexOf=baseIndexOf,stringTag$2="[object String]";function isString(e){return"string"==typeof e||!isArray_1(e)&&isObjectLike_1(e)&&_baseGetTag(e)==stringTag$2}var isString_1=isString;function baseValues(e,t){return _arrayMap(t,function(t){return e[t]})}var _baseValues=baseValues;function values(e){return null==e?[]:_baseValues(e,keys_1(e))}var values_1=values,nativeMax$2=Math.max;function includes(e,t,n,r){e=isArrayLike_1(e)?e:values_1(e),n=n&&!r?toInteger_1(n):0;var i=e.length;return n<0&&(n=nativeMax$2(i+n,0)),isString_1(e)?n<=i&&e.indexOf(t,n)>-1:!!i&&_baseIndexOf(e,t,n)>-1}var includes_1=includes;function baseMap(e,t){var n=-1,r=isArrayLike_1(e)?Array(e.length):[];return _baseEach(e,function(e,i,a){r[++n]=t(e,i,a)}),r}var _baseMap=baseMap;function map(e,t){return(isArray_1(e)?_arrayMap:_baseMap)(e,_baseIteratee(t,3))}var map_1=map,objectProto$c=Object.prototype,hasOwnProperty$9=objectProto$c.hasOwnProperty;function baseHas(e,t){return null!=e&&hasOwnProperty$9.call(e,t)}var _baseHas=baseHas;function has(e,t){return null!=e&&_hasPath(e,t,_baseHas)}var has_1=has,defineProperty=function(){try{var e=_getNative(Object,"defineProperty");return e({},"",{}),e}catch(e){}}(),_defineProperty=defineProperty;function baseAssignValue(e,t,n){"__proto__"==t&&_defineProperty?_defineProperty(e,t,{configurable:!0,enumerable:!0,value:n,writable:!0}):e[t]=n}var _baseAssignValue=baseAssignValue,objectProto$d=Object.prototype,hasOwnProperty$a=objectProto$d.hasOwnProperty;function assignValue(e,t,n){var r=e[t];hasOwnProperty$a.call(e,t)&&eq_1(r,n)&&(void 0!==n||t in e)||_baseAssignValue(e,t,n)}var _assignValue=assignValue;function copyObject(e,t,n,r){var i=!n;n||(n={});for(var a=-1,s=t.length;++a<s;){var o=t[a],l=r?r(n[o],e[o],o,n,e):void 0;void 0===l&&(l=e[o]),i?_baseAssignValue(n,o,l):_assignValue(n,o,l)}return n}var _copyObject=copyObject;function apply(e,t,n){switch(n.length){case 0:return e.call(t);case 1:return e.call(t,n[0]);case 2:return e.call(t,n[0],n[1]);case 3:return e.call(t,n[0],n[1],n[2])}return e.apply(t,n)}var _apply=apply,nativeMax$3=Math.max;function overRest(e,t,n){return t=nativeMax$3(void 0===t?e.length-1:t,0),function(){for(var r=arguments,i=-1,a=nativeMax$3(r.length-t,0),s=Array(a);++i<a;)s[i]=r[t+i];i=-1;for(var o=Array(t+1);++i<t;)o[i]=r[i];return o[t]=n(s),_apply(e,this,o)}}var _overRest=overRest;function constant(e){return function(){return e}}var constant_1=constant,baseSetToString=_defineProperty?function(e,t){return _defineProperty(e,"toString",{configurable:!0,enumerable:!1,value:constant_1(t),writable:!0})}:identity_1,_baseSetToString=baseSetToString,HOT_COUNT=800,HOT_SPAN=16,nativeNow=Date.now;function shortOut(e){var t=0,n=0;return function(){var r=nativeNow(),i=HOT_SPAN-(r-n);if(n=r,i>0){if(++t>=HOT_COUNT)return arguments[0]}else t=0;return e.apply(void 0,arguments)}}var _shortOut=shortOut,setToString=_shortOut(_baseSetToString),_setToString=setToString;function baseRest(e,t){return _setToString(_overRest(e,t,identity_1),e+"")}var _baseRest=baseRest;function createAssigner(e){return _baseRest(function(t,n){var r=-1,i=n.length,a=i>1?n[i-1]:void 0,s=i>2?n[2]:void 0;for(a=e.length>3&&"function"==typeof a?(i--,a):void 0,s&&_isIterateeCall(n[0],n[1],s)&&(a=i<3?void 0:a,i=1),t=Object(t);++r<i;){var o=n[r];o&&e(t,o,r,a)}return t})}var _createAssigner=createAssigner;function nativeKeysIn(e){var t=[];if(null!=e)for(var n in Object(e))t.push(n);return t}var _nativeKeysIn=nativeKeysIn,objectProto$e=Object.prototype,hasOwnProperty$b=objectProto$e.hasOwnProperty;function baseKeysIn(e){if(!isObject_1(e))return _nativeKeysIn(e);var t=_isPrototype(e),n=[];for(var r in e)("constructor"!=r||!t&&hasOwnProperty$b.call(e,r))&&n.push(r);return n}var _baseKeysIn=baseKeysIn;function keysIn$1(e){return isArrayLike_1(e)?_arrayLikeKeys(e,!0):_baseKeysIn(e)}var keysIn_1=keysIn$1,assignIn=_createAssigner(function(e,t){_copyObject(t,keysIn_1(t),e)}),assignIn_1=assignIn,extend=assignIn_1,mapTag$3="[object Map]",setTag$3="[object Set]",objectProto$f=Object.prototype,hasOwnProperty$c=objectProto$f.hasOwnProperty;function isEmpty(e){if(null==e)return!0;if(isArrayLike_1(e)&&(isArray_1(e)||"string"==typeof e||"function"==typeof e.splice||isBuffer_1(e)||isTypedArray_1(e)||isArguments_1(e)))return!e.length;var t=_getTag(e);if(t==mapTag$3||t==setTag$3)return!e.size;if(_isPrototype(e))return!_baseKeys(e).length;for(var n in e)if(hasOwnProperty$c.call(e,n))return!1;return!0}var isEmpty_1=isEmpty;function isEqual(e,t){return _baseIsEqual(e,t)}var isEqual_1=isEqual,now=function(){return _root.Date.now()},now_1=now,FUNC_ERROR_TEXT$1="Expected a function",nativeMax$4=Math.max,nativeMin=Math.min;function debounce(e,t,n){var r,i,a,s,o,l,c=0,u=!1,_=!1,d=!0;if("function"!=typeof e)throw new TypeError(FUNC_ERROR_TEXT$1);function h(t){var n=r,a=i;return r=i=void 0,c=t,s=e.apply(a,n)}function p(e){var n=e-l;return void 0===l||n>=t||n<0||_&&e-c>=a}function f(){var e=now_1();if(p(e))return m(e);o=setTimeout(f,function(e){var n=t-(e-l);return _?nativeMin(n,a-(e-c)):n}(e))}function m(e){return o=void 0,d&&r?h(e):(r=i=void 0,s)}function g(){var e=now_1(),n=p(e);if(r=arguments,i=this,l=e,n){if(void 0===o)return function(e){return c=e,o=setTimeout(f,t),u?h(e):s}(l);if(_)return o=setTimeout(f,t),h(l)}return void 0===o&&(o=setTimeout(f,t)),s}return t=toNumber_1(t)||0,isObject_1(n)&&(u=!!n.leading,a=(_="maxWait"in n)?nativeMax$4(toNumber_1(n.maxWait)||0,t):a,d="trailing"in n?!!n.trailing:d),g.cancel=function(){void 0!==o&&clearTimeout(o),c=0,r=l=i=o=void 0},g.flush=function(){return void 0===o?s:m(now_1())},g}var debounce_1=debounce;function arrayEach(e,t){for(var n=-1,r=null==e?0:e.length;++n<r&&!1!==t(e[n],n,e););return e}var _arrayEach=arrayEach;function baseAssign(e,t){return e&&_copyObject(t,keys_1(t),e)}var _baseAssign=baseAssign;function baseAssignIn(e,t){return e&&_copyObject(t,keysIn_1(t),e)}var _baseAssignIn=baseAssignIn,_cloneBuffer=createCommonjsModule(function(e,t){var n=t&&!t.nodeType&&t,r=n&&e&&!e.nodeType&&e,i=r&&r.exports===n?_root.Buffer:void 0,a=i?i.allocUnsafe:void 0;e.exports=function(e,t){if(t)return e.slice();var n=e.length,r=a?a(n):new e.constructor(n);return e.copy(r),r}});function copyArray(e,t){var n=-1,r=e.length;for(t||(t=Array(r));++n<r;)t[n]=e[n];return t}var _copyArray=copyArray;function copySymbols(e,t){return _copyObject(e,_getSymbols(e),t)}var _copySymbols=copySymbols,getPrototype=_overArg(Object.getPrototypeOf,Object),_getPrototype=getPrototype,nativeGetSymbols$1=Object.getOwnPropertySymbols,getSymbolsIn=nativeGetSymbols$1?function(e){for(var t=[];e;)_arrayPush(t,_getSymbols(e)),e=_getPrototype(e);return t}:stubArray_1,_getSymbolsIn=getSymbolsIn;function copySymbolsIn(e,t){return _copyObject(e,_getSymbolsIn(e),t)}var _copySymbolsIn=copySymbolsIn;function getAllKeysIn(e){return _baseGetAllKeys(e,keysIn_1,_getSymbolsIn)}var _getAllKeysIn=getAllKeysIn,objectProto$g=Object.prototype,hasOwnProperty$d=objectProto$g.hasOwnProperty;function initCloneArray(e){var t=e.length,n=new e.constructor(t);return t&&"string"==typeof e[0]&&hasOwnProperty$d.call(e,"index")&&(n.index=e.index,n.input=e.input),n}var _initCloneArray=initCloneArray;function cloneArrayBuffer(e){var t=new e.constructor(e.byteLength);return new _Uint8Array(t).set(new _Uint8Array(e)),t}var _cloneArrayBuffer=cloneArrayBuffer;function cloneDataView(e,t){var n=t?_cloneArrayBuffer(e.buffer):e.buffer;return new e.constructor(n,e.byteOffset,e.byteLength)}var _cloneDataView=cloneDataView,reFlags=/\w*$/;function cloneRegExp(e){var t=new e.constructor(e.source,reFlags.exec(e));return t.lastIndex=e.lastIndex,t}var _cloneRegExp=cloneRegExp,symbolProto$2=_Symbol?_Symbol.prototype:void 0,symbolValueOf$1=symbolProto$2?symbolProto$2.valueOf:void 0;function cloneSymbol(e){return symbolValueOf$1?Object(symbolValueOf$1.call(e)):{}}var _cloneSymbol=cloneSymbol;function cloneTypedArray(e,t){var n=t?_cloneArrayBuffer(e.buffer):e.buffer;return new e.constructor(n,e.byteOffset,e.length)}var _cloneTypedArray=cloneTypedArray,boolTag$2="[object Boolean]",dateTag$2="[object Date]",mapTag$4="[object Map]",numberTag$2="[object Number]",regexpTag$2="[object RegExp]",setTag$4="[object Set]",stringTag$3="[object String]",symbolTag$2="[object Symbol]",arrayBufferTag$2="[object ArrayBuffer]",dataViewTag$3="[object DataView]",float32Tag$1="[object Float32Array]",float64Tag$1="[object Float64Array]",int8Tag$1="[object Int8Array]",int16Tag$1="[object Int16Array]",int32Tag$1="[object Int32Array]",uint8Tag$1="[object Uint8Array]",uint8ClampedTag$1="[object Uint8ClampedArray]",uint16Tag$1="[object Uint16Array]",uint32Tag$1="[object Uint32Array]";function initCloneByTag(e,t,n){var r=e.constructor;switch(t){case arrayBufferTag$2:return _cloneArrayBuffer(e);case boolTag$2:case dateTag$2:return new r(+e);case dataViewTag$3:return _cloneDataView(e,n);case float32Tag$1:case float64Tag$1:case int8Tag$1:case int16Tag$1:case int32Tag$1:case uint8Tag$1:case uint8ClampedTag$1:case uint16Tag$1:case uint32Tag$1:return _cloneTypedArray(e,n);case mapTag$4:return new r;case numberTag$2:case stringTag$3:return new r(e);case regexpTag$2:return _cloneRegExp(e);case setTag$4:return new r;case symbolTag$2:return _cloneSymbol(e)}}var _initCloneByTag=initCloneByTag,objectCreate=Object.create,baseCreate=function(){function e(){}return function(t){if(!isObject_1(t))return{};if(objectCreate)return objectCreate(t);e.prototype=t;var n=new e;return e.prototype=void 0,n}}(),_baseCreate=baseCreate;function initCloneObject(e){return"function"!=typeof e.constructor||_isPrototype(e)?{}:_baseCreate(_getPrototype(e))}var _initCloneObject=initCloneObject,mapTag$5="[object Map]";function baseIsMap(e){return isObjectLike_1(e)&&_getTag(e)==mapTag$5}var _baseIsMap=baseIsMap,nodeIsMap=_nodeUtil&&_nodeUtil.isMap,isMap=nodeIsMap?_baseUnary(nodeIsMap):_baseIsMap,isMap_1=isMap,setTag$5="[object Set]";function baseIsSet(e){return isObjectLike_1(e)&&_getTag(e)==setTag$5}var _baseIsSet=baseIsSet,nodeIsSet=_nodeUtil&&_nodeUtil.isSet,isSet=nodeIsSet?_baseUnary(nodeIsSet):_baseIsSet,isSet_1=isSet,CLONE_DEEP_FLAG=1,CLONE_FLAT_FLAG=2,CLONE_SYMBOLS_FLAG=4,argsTag$3="[object Arguments]",arrayTag$2="[object Array]",boolTag$3="[object Boolean]",dateTag$3="[object Date]",errorTag$2="[object Error]",funcTag$2="[object Function]",genTag$1="[object GeneratorFunction]",mapTag$6="[object Map]",numberTag$3="[object Number]",objectTag$3="[object Object]",regexpTag$3="[object RegExp]",setTag$6="[object Set]",stringTag$4="[object String]",symbolTag$3="[object Symbol]",weakMapTag$2="[object WeakMap]",arrayBufferTag$3="[object ArrayBuffer]",dataViewTag$4="[object DataView]",float32Tag$2="[object Float32Array]",float64Tag$2="[object Float64Array]",int8Tag$2="[object Int8Array]",int16Tag$2="[object Int16Array]",int32Tag$2="[object Int32Array]",uint8Tag$2="[object Uint8Array]",uint8ClampedTag$2="[object Uint8ClampedArray]",uint16Tag$2="[object Uint16Array]",uint32Tag$2="[object Uint32Array]",cloneableTags={};function baseClone(e,t,n,r,i,a){var s,o=t&CLONE_DEEP_FLAG,l=t&CLONE_FLAT_FLAG,c=t&CLONE_SYMBOLS_FLAG;if(n&&(s=i?n(e,r,i,a):n(e)),void 0!==s)return s;if(!isObject_1(e))return e;var u=isArray_1(e);if(u){if(s=_initCloneArray(e),!o)return _copyArray(e,s)}else{var _=_getTag(e),d=_==funcTag$2||_==genTag$1;if(isBuffer_1(e))return _cloneBuffer(e,o);if(_==objectTag$3||_==argsTag$3||d&&!i){if(s=l||d?{}:_initCloneObject(e),!o)return l?_copySymbolsIn(e,_baseAssignIn(s,e)):_copySymbols(e,_baseAssign(s,e))}else{if(!cloneableTags[_])return i?e:{};s=_initCloneByTag(e,_,o)}}a||(a=new _Stack);var h=a.get(e);if(h)return h;if(a.set(e,s),isSet_1(e))return e.forEach(function(r){s.add(baseClone(r,t,n,r,e,a))}),s;if(isMap_1(e))return e.forEach(function(r,i){s.set(i,baseClone(r,t,n,i,e,a))}),s;var p=c?l?_getAllKeysIn:_getAllKeys:l?keysIn:keys_1,f=u?void 0:p(e);return _arrayEach(f||e,function(r,i){f&&(r=e[i=r]),_assignValue(s,i,baseClone(r,t,n,i,e,a))}),s}cloneableTags[argsTag$3]=cloneableTags[arrayTag$2]=cloneableTags[arrayBufferTag$3]=cloneableTags[dataViewTag$4]=cloneableTags[boolTag$3]=cloneableTags[dateTag$3]=cloneableTags[float32Tag$2]=cloneableTags[float64Tag$2]=cloneableTags[int8Tag$2]=cloneableTags[int16Tag$2]=cloneableTags[int32Tag$2]=cloneableTags[mapTag$6]=cloneableTags[numberTag$3]=cloneableTags[objectTag$3]=cloneableTags[regexpTag$3]=cloneableTags[setTag$6]=cloneableTags[stringTag$4]=cloneableTags[symbolTag$3]=cloneableTags[uint8Tag$2]=cloneableTags[uint8ClampedTag$2]=cloneableTags[uint16Tag$2]=cloneableTags[uint32Tag$2]=!0,cloneableTags[errorTag$2]=cloneableTags[funcTag$2]=cloneableTags[weakMapTag$2]=!1;var _baseClone=baseClone,CLONE_DEEP_FLAG$1=1,CLONE_SYMBOLS_FLAG$1=4;function cloneDeep(e){return _baseClone(e,CLONE_DEEP_FLAG$1|CLONE_SYMBOLS_FLAG$1)}var cloneDeep_1=cloneDeep;function arrayIncludes(e,t){return!!(null==e?0:e.length)&&_baseIndexOf(e,t,0)>-1}var _arrayIncludes=arrayIncludes;function arrayIncludesWith(e,t,n){for(var r=-1,i=null==e?0:e.length;++r<i;)if(n(t,e[r]))return!0;return!1}var _arrayIncludesWith=arrayIncludesWith,LARGE_ARRAY_SIZE$1=200;function baseDifference(e,t,n,r){var i=-1,a=_arrayIncludes,s=!0,o=e.length,l=[],c=t.length;if(!o)return l;n&&(t=_arrayMap(t,_baseUnary(n))),r?(a=_arrayIncludesWith,s=!1):t.length>=LARGE_ARRAY_SIZE$1&&(a=_cacheHas,s=!1,t=new _SetCache(t));e:for(;++i<o;){var u=e[i],_=null==n?u:n(u);if(u=r||0!==u?u:0,s&&_==_){for(var d=c;d--;)if(t[d]===_)continue e;l.push(u)}else a(t,_,r)||l.push(u)}return l}var _baseDifference=baseDifference,spreadableSymbol=_Symbol?_Symbol.isConcatSpreadable:void 0;function isFlattenable(e){return isArray_1(e)||isArguments_1(e)||!!(spreadableSymbol&&e&&e[spreadableSymbol])}var _isFlattenable=isFlattenable;function baseFlatten(e,t,n,r,i){var a=-1,s=e.length;for(n||(n=_isFlattenable),i||(i=[]);++a<s;){var o=e[a];t>0&&n(o)?t>1?baseFlatten(o,t-1,n,r,i):_arrayPush(i,o):r||(i[i.length]=o)}return i}var _baseFlatten=baseFlatten;function isArrayLikeObject(e){return isObjectLike_1(e)&&isArrayLike_1(e)}var isArrayLikeObject_1=isArrayLikeObject;function last(e){var t=null==e?0:e.length;return t?e[t-1]:void 0}var last_1=last,differenceWith=_baseRest(function(e,t){var n=last_1(t);return isArrayLikeObject_1(n)&&(n=void 0),isArrayLikeObject_1(e)?_baseDifference(e,_baseFlatten(t,1,isArrayLikeObject_1,!0),void 0,n):[]}),differenceWith_1=differenceWith,differenceBy=_baseRest(function(e,t){var n=last_1(t);return isArrayLikeObject_1(n)&&(n=void 0),isArrayLikeObject_1(e)?_baseDifference(e,_baseFlatten(t,1,isArrayLikeObject_1,!0),_baseIteratee(n,2)):[]}),differenceBy_1=differenceBy,nativeMin$1=Math.min;function baseIntersection(e,t,n){for(var r=n?_arrayIncludesWith:_arrayIncludes,i=e[0].length,a=e.length,s=a,o=Array(a),l=1/0,c=[];s--;){var u=e[s];s&&t&&(u=_arrayMap(u,_baseUnary(t))),l=nativeMin$1(u.length,l),o[s]=!n&&(t||i>=120&&u.length>=120)?new _SetCache(s&&u):void 0}u=e[0];var _=-1,d=o[0];e:for(;++_<i&&c.length<l;){var h=u[_],p=t?t(h):h;if(h=n||0!==h?h:0,!(d?_cacheHas(d,p):r(c,p,n))){for(s=a;--s;){var f=o[s];if(!(f?_cacheHas(f,p):r(e[s],p,n)))continue e}d&&d.push(p),c.push(h)}}return c}var _baseIntersection=baseIntersection;function castArrayLikeObject(e){return isArrayLikeObject_1(e)?e:[]}var _castArrayLikeObject=castArrayLikeObject,intersectionWith=_baseRest(function(e){var t=last_1(e),n=_arrayMap(e,_castArrayLikeObject);return(t="function"==typeof t?t:void 0)&&n.pop(),n.length&&n[0]===e[0]?_baseIntersection(n,void 0,t):[]}),intersectionWith_1=intersectionWith,intersectionBy=_baseRest(function(e){var t=last_1(e),n=_arrayMap(e,_castArrayLikeObject);return t===last_1(n)?t=void 0:n.pop(),n.length&&n[0]===e[0]?_baseIntersection(n,_baseIteratee(t,2)):[]}),intersectionBy_1=intersectionBy;function baseSortBy(e,t){var n=e.length;for(e.sort(t);n--;)e[n]=e[n].value;return e}var _baseSortBy=baseSortBy;function compareAscending(e,t){if(e!==t){var n=void 0!==e,r=null===e,i=e==e,a=isSymbol_1(e),s=void 0!==t,o=null===t,l=t==t,c=isSymbol_1(t);if(!o&&!c&&!a&&e>t||a&&s&&l&&!o&&!c||r&&s&&l||!n&&l||!i)return 1;if(!r&&!a&&!c&&e<t||c&&n&&i&&!r&&!a||o&&n&&i||!s&&i||!l)return-1}return 0}var _compareAscending=compareAscending;function compareMultiple(e,t,n){for(var r=-1,i=e.criteria,a=t.criteria,s=i.length,o=n.length;++r<s;){var l=_compareAscending(i[r],a[r]);if(l)return r>=o?l:l*("desc"==n[r]?-1:1)}return e.index-t.index}var _compareMultiple=compareMultiple;function baseOrderBy(e,t,n){var r=-1;t=_arrayMap(t.length?t:[identity_1],_baseUnary(_baseIteratee));var i=_baseMap(e,function(e,n,i){return{criteria:_arrayMap(t,function(t){return t(e)}),index:++r,value:e}});return _baseSortBy(i,function(e,t){return _compareMultiple(e,t,n)})}var _baseOrderBy=baseOrderBy;function orderBy(e,t,n,r){return null==e?[]:(isArray_1(t)||(t=null==t?[]:[t]),isArray_1(n=r?void 0:n)||(n=null==n?[]:[n]),_baseOrderBy(e,t,n))}var orderBy_1=orderBy;function baseSlice(e,t,n){var r=-1,i=e.length;t<0&&(t=-t>i?0:i+t),(n=n>i?i:n)<0&&(n+=i),i=t>n?0:n-t>>>0,t>>>=0;for(var a=Array(i);++r<i;)a[r]=e[r+t];return a}var _baseSlice=baseSlice;function parent(e,t){return t.length<2?e:_baseGet(e,_baseSlice(t,0,-1))}var _parent=parent;function baseUnset(e,t){return t=_castPath(t,e),null==(e=_parent(e,t))||delete e[_toKey(last_1(t))]}var _baseUnset=baseUnset,objectTag$4="[object Object]",funcProto$2=Function.prototype,objectProto$h=Object.prototype,funcToString$2=funcProto$2.toString,hasOwnProperty$e=objectProto$h.hasOwnProperty,objectCtorString=funcToString$2.call(Object);function isPlainObject(e){if(!isObjectLike_1(e)||_baseGetTag(e)!=objectTag$4)return!1;var t=_getPrototype(e);if(null===t)return!0;var n=hasOwnProperty$e.call(t,"constructor")&&t.constructor;return"function"==typeof n&&n instanceof n&&funcToString$2.call(n)==objectCtorString}var isPlainObject_1=isPlainObject;function customOmitClone(e){return isPlainObject_1(e)?void 0:e}var _customOmitClone=customOmitClone;function flatten(e){return(null==e?0:e.length)?_baseFlatten(e,1):[]}var flatten_1=flatten;function flatRest(e){return _setToString(_overRest(e,void 0,flatten_1),e+"")}var _flatRest=flatRest,CLONE_DEEP_FLAG$2=1,CLONE_FLAT_FLAG$1=2,CLONE_SYMBOLS_FLAG$2=4,omit=_flatRest(function(e,t){var n={};if(null==e)return n;var r=!1;t=_arrayMap(t,function(t){return t=_castPath(t,e),r||(r=t.length>1),t}),_copyObject(e,_getAllKeysIn(e),n),r&&(n=_baseClone(n,CLONE_DEEP_FLAG$2|CLONE_FLAT_FLAG$1|CLONE_SYMBOLS_FLAG$2,_customOmitClone));for(var i=t.length;i--;)_baseUnset(n,t[i]);return n}),omit_1=omit,CLONE_SYMBOLS_FLAG$3=4;function clone(e){return _baseClone(e,CLONE_SYMBOLS_FLAG$3)}var clone_1=clone,script={name:"CheckBox",props:{rowsSelectable:{type:Boolean,default:!1},rowSelected:{type:Boolean,required:!0}},data:function(){return{checkboxSelected:!1}},methods:{selectCheckbox:function(e){this.checkboxSelected?this.$emit("remove-row",e.shiftKey):this.$emit("add-row",e.shiftKey)}},watch:{rowSelected:function(e,t){this.checkboxSelected=e}}},__vue_script__=script,__vue_render__=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("td",e._g({staticClass:"text-center"},e.rowsSelectable?{}:{click:function(t){return e.selectCheckbox(t)}}),[n("div",{staticClass:"custom-control custom-checkbox"},[n("input",{directives:[{name:"model",rawName:"v-model",value:e.checkboxSelected,expression:"checkboxSelected"}],staticClass:"custom-control-input vbt-checkbox",attrs:{type:"checkbox"},domProps:{checked:Array.isArray(e.checkboxSelected)?e._i(e.checkboxSelected,null)>-1:e.checkboxSelected},on:{change:function(t){var n=e.checkboxSelected,r=t.target,i=!!r.checked;if(Array.isArray(n)){var a=e._i(n,null);r.checked?a<0&&(e.checkboxSelected=n.concat([null])):a>-1&&(e.checkboxSelected=n.slice(0,a).concat(n.slice(a+1)))}else e.checkboxSelected=i}}}),e._v(" "),n("label",{staticClass:"custom-control-label"})])])},__vue_staticRenderFns__=[];__vue_render__._withStripped=!0;var __vue_inject_styles__=function(e){e&&e("data-v-aaaf6e90_0",{source:"\n.custom-control-label[data-v-aaaf6e90] {\n  vertical-align: top;\n}\n\n",map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/CheckBox.vue"],names:[],mappings:";AA8CA;EACA,oBAAA;CACA",file:"CheckBox.vue",sourcesContent:['<template>\n    <td class="text-center" v-on="!rowsSelectable ? { click: (event) => selectCheckbox(event)} : {}">\n        <div class="custom-control custom-checkbox">\n          <input type="checkbox" class="custom-control-input vbt-checkbox" v-model="checkboxSelected"/>\n          <label class="custom-control-label"></label>\n        </div>\n    </td>\n</template>\n\n\n<script>\n    export default {\n        name: \'CheckBox\',\n        props: {\n            rowsSelectable: {\n                type: Boolean,\n                default: false\n            },\n            rowSelected: {\n                type: Boolean,\n                required: true\n            }\n        },\n        data: function() {\n            return {\n                checkboxSelected:false\n            }\n        },\n        methods: {\n            selectCheckbox(event) {\n                if (this.checkboxSelected) {\n                    this.$emit(\'remove-row\', event.shiftKey);\n                } else {\n                    this.$emit(\'add-row\', event.shiftKey);\n                }\n            },\n        },\n        watch: {\n            rowSelected(newVal,oldVal) {\n                this.checkboxSelected = newVal;\n            }\n        }\n    }\n<\/script>\n\n<style scoped>\n.custom-control-label {\n  vertical-align: top;\n}\n\n</style>\n']},media:void 0})},__vue_scope_id__="data-v-aaaf6e90",__vue_module_identifier__=void 0,__vue_is_functional_template__=!1;function __vue_normalize__(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/CheckBox.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__.styles||(__vue_create_injector__.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var CheckBox=__vue_normalize__({render:__vue_render__,staticRenderFns:__vue_staticRenderFns__},__vue_inject_styles__,__vue_script__,__vue_scope_id__,__vue_is_functional_template__,__vue_module_identifier__,__vue_create_injector__,void 0),EventBus=new vue__WEBPACK_IMPORTED_MODULE_0___default.a,script$1={name:"Row",props:{row:{type:Object,required:!0},propRowClasses:{type:Object|String,required:!1},propCellClasses:{type:Object|String,required:!1},columns:{type:Array,default:function(){return[]}},uniqueId:{type:Number|String,required:!0},selectedItems:{type:Array,default:function(){return[]}},checkboxRows:{type:Boolean,default:!1},highlightRowHover:{type:Boolean,default:!1},highlightRowHoverColor:{type:String,default:"#d6d6d6"},rowsSelectable:{type:Boolean,default:!1},rowIndex:{type:Number,required:!0}},data:function(){return{rowSelected:!1,rowHiglighted:!1}},mounted:function(){var e=this;this.highlightRowHover&&(this.$refs.vbt_row.addEventListener("mouseover",function(){e.rowHiglighted=!0}),this.$refs.vbt_row.addEventListener("mouseleave",function(){e.rowHiglighted=!1})),this.checkInSelecteditems(this.selectedItems,this.row)},methods:{addRow:function(e){this.$emit("add-row",{shiftKey:e,rowIndex:this.rowIndex})},removeRow:function(e){this.$emit("remove-row",{shiftKey:e,rowIndex:this.rowIndex})},handleRowSelect:function(e){this.rowSelected?this.removeRow(e.shiftKey):this.addRow(e.shiftKey),this.rowSelected=!this.rowSelected},checkInSelecteditems:function(e,t){(this.checkboxRows||this.rowsSelectable)&&(differenceWith_1(e,[t],isEqual_1).length!=e.length?this.rowSelected=!0:this.rowSelected=!1)},rowHover:function(e){this.rowHiglighted=e},getValueFromRow:function(e,t){return get_1(e,t)},cellClasses:function(e){var t=this,n="";return has_1(e,"row_text_alignment")&&includes_1(["text-justify","text-right","text-left","text-center"],e.row_text_alignment)?n=n+" "+e.row_text_alignment:n+=" text-center",has_1(e,"row_classes")&&(n=n+" "+e.row_classes),"string"==typeof this.propCellClasses?this.propCellClasses:("object"==typeof this.propCellClasses&&Object.entries(this.propCellClasses).forEach(function(r){var i=r[0],a=r[1];if("boolean"==typeof a&&a)n+=" "+i;else if("function"==typeof a){var s=a(t.row,e,t.getValueFromRow(t.row,e.name));"boolean"==typeof s&&s&&(n+=" ",n+=i)}}),n)},getCellSlotName:function(e){return has_1(e,"slot_name")?e.slot_name:e.name.replace(/\./g,"_")},canShowColumn:function(e){return!(null!=e.visibility&&!e.visibility)}},computed:{rowClasses:function(){var e=this.userRowClasses;return this.rowSelected&&(e+=" ",e+="vbt-row-selected"),e},userRowClasses:function(){var e=this,t="";return"string"==typeof this.propRowClasses?this.propRowClasses:("object"==typeof this.propRowClasses&&Object.entries(this.propRowClasses).forEach(function(n){var r=n[0],i=n[1];if("boolean"==typeof i&&i)t+=r;else if("function"==typeof i){var a=i(e.row);"boolean"==typeof a&&a&&(t+=" ",t+=r)}}),t)},rowId:function(){return this.getValueFromRow(this.row,this.uniqueId)}},watch:{row:{handler:function(e,t){this.checkInSelecteditems(this.selectedItems,e)},deep:!0},selectedItems:{handler:function(e,t){this.checkInSelecteditems(e,this.row)},deep:!0}},components:{CheckBox:CheckBox}},__vue_script__$1=script$1,__vue_render__$1=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("tr",e._g({ref:"vbt_row",class:e.rowClasses,style:{background:e.rowHiglighted?e.highlightRowHoverColor:""},attrs:{"data-id":e.rowId}},e.rowsSelectable?{click:function(t){return e.handleRowSelect(t)}}:{}),[e.checkboxRows?n("CheckBox",{attrs:{rowsSelectable:e.rowsSelectable,"row-selected":e.rowSelected},on:{"add-row":e.addRow,"remove-row":e.removeRow}}):e._e(),e._v(" "),e._l(e.columns,function(t,r,i){return[e.canShowColumn(t)?n("td",{key:i,class:e.cellClasses(t)},[e._t("vbt-"+e.getCellSlotName(t))],2):e._e()]})],2)},__vue_staticRenderFns__$1=[];__vue_render__$1._withStripped=!0;var __vue_inject_styles__$1=void 0,__vue_scope_id__$1=void 0,__vue_module_identifier__$1=void 0,__vue_is_functional_template__$1=!1;function __vue_normalize__$1(e,t,n,r,i,a,s,o){var l=("function"==typeof n?n.options:n)||{};return l.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Row.vue",l.render||(l.render=e.render,l.staticRenderFns=e.staticRenderFns,l._compiled=!0,i&&(l.functional=!0)),l._scopeId=r,l}var Row=__vue_normalize__$1({render:__vue_render__$1,staticRenderFns:__vue_staticRenderFns__$1},__vue_inject_styles__$1,__vue_script__$1,__vue_scope_id__$1,__vue_is_functional_template__$1,__vue_module_identifier__$1,void 0,void 0),script$2={name:"SelectAllRowsCheckBox",props:{allRowsSelected:{type:Boolean,default:!1},currentPageSelectionCount:{type:Number,default:0}},computed:{showIndeterminateState:function(){return!this.allRowsSelected&&this.currentPageSelectionCount>0}}},__vue_script__$2=script$2,__vue_render__$2=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("th",{staticClass:"text-center justify-content-center",on:{click:function(t){e.$emit("select-all-row-checkbox")}}},[n("div",{staticClass:"custom-control custom-checkbox"},[n("input",{directives:[{name:"model",rawName:"v-model",value:e.allRowsSelected,expression:"allRowsSelected"}],staticClass:"custom-control-input vbt-checkbox",attrs:{type:"checkbox",value:""},domProps:{indeterminate:e.showIndeterminateState,checked:Array.isArray(e.allRowsSelected)?e._i(e.allRowsSelected,"")>-1:e.allRowsSelected},on:{change:function(t){var n=e.allRowsSelected,r=t.target,i=!!r.checked;if(Array.isArray(n)){var a=e._i(n,"");r.checked?a<0&&(e.allRowsSelected=n.concat([""])):a>-1&&(e.allRowsSelected=n.slice(0,a).concat(n.slice(a+1)))}else e.allRowsSelected=i}}}),e._v(" "),n("label",{staticClass:"custom-control-label"})])])},__vue_staticRenderFns__$2=[];__vue_render__$2._withStripped=!0;var __vue_inject_styles__$2=function(e){e&&e("data-v-6ab70b9c_0",{source:"\n.custom-control-label[data-v-6ab70b9c] {\n  vertical-align: top;\n}\n\n",map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/SelectAllRowsCheckBox.vue"],names:[],mappings:";AA+BA;EACA,oBAAA;CACA",file:"SelectAllRowsCheckBox.vue",sourcesContent:['<template>\n    <th class="text-center justify-content-center" @click="$emit(\'select-all-row-checkbox\')">\n        <div class="custom-control custom-checkbox">\n            <input type="checkbox" :indeterminate.prop="showIndeterminateState" class="custom-control-input vbt-checkbox" v-model="allRowsSelected" value=""/>\n            <label class="custom-control-label"></label>\n        </div>\n    </th>\n</template>\n\n<script>\n    export default {\n        name: \'SelectAllRowsCheckBox\',\n        props: {\n            allRowsSelected: {\n                type: Boolean,\n                default: false\n            },\n            currentPageSelectionCount: {\n                type: Number,\n                default: 0\n            },\n        },\n        computed: {\n            showIndeterminateState() {\n                return !this.allRowsSelected && this.currentPageSelectionCount > 0;\n            },\n        }\n    }\n<\/script>\n\n<style scoped>\n.custom-control-label {\n  vertical-align: top;\n}\n\n</style>\n']},media:void 0})},__vue_scope_id__$2="data-v-6ab70b9c",__vue_module_identifier__$2=void 0,__vue_is_functional_template__$2=!1;function __vue_normalize__$2(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/SelectAllRowsCheckBox.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__$1(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__$1.styles||(__vue_create_injector__$1.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var SelectAllRowsCheckBox=__vue_normalize__$2({render:__vue_render__$2,staticRenderFns:__vue_staticRenderFns__$2},__vue_inject_styles__$2,__vue_script__$2,__vue_scope_id__$2,__vue_is_functional_template__$2,__vue_module_identifier__$2,__vue_create_injector__$1,void 0),script$3={name:"SortIcon",props:{sort:{type:Array,default:function(){return[]}},column:{type:Object,default:function(){return{}}}},data:function(){return{}},mounted:function(){},methods:{},computed:{order:function(){var e=findIndex_1(this.sort,{vbt_col_id:this.column.vbt_col_id});return-1==e?null:this.sort[e].order}}},__vue_script__$3=script$3,__vue_render__$3=function(){var e=this.$createElement;return(this._self._c||e)("div",{staticClass:"float-right"},["asc"==this.order?[this._t("vbt-sort-asc-icon")]:"desc"===this.order?[this._t("vbt-sort-desc-icon")]:[this._t("vbt-no-sort-icon")]],2)},__vue_staticRenderFns__$3=[];__vue_render__$3._withStripped=!0;var __vue_inject_styles__$3=void 0,__vue_scope_id__$3=void 0,__vue_module_identifier__$3=void 0,__vue_is_functional_template__$3=!1;function __vue_normalize__$3(e,t,n,r,i,a,s,o){var l=("function"==typeof n?n.options:n)||{};return l.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/SortIcon.vue",l.render||(l.render=e.render,l.staticRenderFns=e.staticRenderFns,l._compiled=!0,i&&(l.functional=!0)),l._scopeId=r,l}var SortIcon=__vue_normalize__$3({render:__vue_render__$3,staticRenderFns:__vue_staticRenderFns__$3},__vue_inject_styles__$3,__vue_script__$3,__vue_scope_id__$3,__vue_is_functional_template__$3,__vue_module_identifier__$3,void 0,void 0),script$4={name:"Pagination",props:{page:{type:[String,Number],required:!0},per_page:{type:[String,Number],required:!0},total:{type:[String,Number],required:!0},num_of_visibile_pagination_buttons:{type:[String,Number],default:7},per_page_options:{type:Array,default:function(){return[5,10,15]}}},data:function(){return{start:this.page+0,end:0,go_to_page:""}},mounted:function(){this.calculatePageRange(!0)},methods:{gotoPage:function(){""!==this.go_to_page&&this.isPositiveInteger(this.go_to_page)&&this.pageHandler(this.go_to_page)},pageHandler:function(e){e>=1&&e<=this.totalPages&&this.$emit("update:page",e)},perPageHandler:function(e){this.$emit("update:per_page",e)},calculatePageRange:function(e){if(void 0===e&&(e=!1),this.totalPages<=this.num_of_visibile_pagination_buttons)return this.start=1,void(this.end=this.totalPages);(e||!includes_1(this.range,this.page-1)&&1!=this.page||!includes_1(this.range,this.page+1)&&this.page!=this.totalPages)&&(this.start=1==this.page?1:this.page-1,this.end=this.start+this.num_of_visibile_pagination_buttons-5,this.start<=3&&(this.end+=3-this.start,this.start=1),this.end>=this.totalPages-2&&(this.start-=this.end-(this.totalPages-2),this.end=this.totalPages),this.start=Math.max(this.start,1))},isPositiveInteger:function(e){return/^\+?(0|[1-9]\d*)$/.test(e)}},components:{},computed:{totalPages:function(){return Math.ceil(this.total/this.per_page)},disablePreviousButton:function(){return this.page==this.start},disableNextButton:function(){return this.page==this.end},range:function(){return range_1(this.start,this.end+1)},isEmpty:function(){return 0==this.total}},watch:{page:function(e,t){this.calculatePageRange()},rowCount:function(e,t){this.calculatePageRange()},totalPages:function(e,t){this.calculatePageRange()}}},__vue_script__$4=script$4,__vue_render__$4=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",[n("nav",{attrs:{"aria-label":"Page navigation example"}},[n("ul",{staticClass:"pagination"},[n("li",{staticClass:"page-item",class:{disabled:e.disablePreviousButton},on:{click:function(t){t.preventDefault(),e.pageHandler(e.page-1)}}},[n("a",{staticClass:"page-link",attrs:{href:"","aria-label":"Previous"}},[n("span",{attrs:{"aria-hidden":"true"}},[e._t("vbt-paginataion-previous-button")],2)])]),e._v(" "),e.isEmpty?[e._m(0)]:[e.start>3?n("li",{staticClass:"page-item",on:{click:function(t){t.preventDefault(),e.pageHandler(1)}}},[n("a",{staticClass:"page-link",attrs:{href:""}},[e._v(" 1 ")])]):e._e(),e._v(" "),e.start>3?n("li",{staticClass:"page-item disabled"},[n("a",{staticClass:"page-link",attrs:{href:""}},[e._v("…")])]):e._e(),e._v(" "),e._l(e.range,function(t){return n("li",{key:t,staticClass:"page-item",class:{active:t==e.page},on:{click:function(n){n.preventDefault(),e.pageHandler(t)}}},[n("a",{staticClass:"page-link",attrs:{href:""}},[e._v(e._s(t))])])}),e._v(" "),e.end<e.totalPages-2?n("li",{staticClass:"page-item disabled"},[n("a",{staticClass:"page-link",attrs:{href:""}},[e._v("…")])]):e._e(),e._v(" "),e.end<e.totalPages-2?n("li",{staticClass:"page-item",on:{click:function(t){t.preventDefault(),e.pageHandler(e.totalPages)}}},[n("a",{staticClass:"page-link",attrs:{href:""}},[e._v(" "+e._s(e.totalPages)+" ")])]):e._e()],e._v(" "),n("li",{staticClass:"page-item",class:{disabled:e.disableNextButton},on:{click:function(t){t.preventDefault(),e.pageHandler(e.page+1)}}},[n("a",{staticClass:"page-link",attrs:{href:"","aria-label":"Next"}},[n("span",{attrs:{"aria-hidden":"true"}},[e._t("vbt-paginataion-next-button")],2)])]),e._v(" "),n("div",{staticClass:"dropdown show vbt-per-page-dropdown"},[n("a",{staticClass:"btn btn-primary dropdown-toggle",attrs:{href:"#",role:"button",id:"dropdownMenuLink","data-toggle":"dropdown","aria-haspopup":"true","aria-expanded":"false"}},[e._v("\n                    "+e._s(e.per_page)+"\n                ")]),e._v(" "),n("div",{staticClass:"dropdown-menu",attrs:{"aria-labelledby":"dropdownMenuLink"}},e._l(e.per_page_options,function(t,r,i){return n("a",{key:i,staticClass:"dropdown-item",class:{active:t==e.per_page},attrs:{href:""},on:{click:function(n){n.preventDefault(),e.perPageHandler(t)}}},[e._v("\n                        "+e._s(t)+"\n                    ")])}),0)]),e._v(" "),n("div",{staticClass:"input-group col-sm-2"},[n("input",{directives:[{name:"model",rawName:"v-model.number",value:e.go_to_page,expression:"go_to_page",modifiers:{number:!0}}],staticClass:"form-control",attrs:{type:"number",min:"1",step:"1",max:e.totalPages,placeholder:"Go to page"},domProps:{value:e.go_to_page},on:{keyup:function(t){return"button"in t||!e._k(t.keyCode,"enter",13,t.key,"Enter")?e.gotoPage(t):null},input:function(t){t.target.composing||(e.go_to_page=e._n(t.target.value))},blur:function(t){e.$forceUpdate()}}})])],2)])])},__vue_staticRenderFns__$4=[function(){var e=this.$createElement,t=this._self._c||e;return t("li",{staticClass:"page-item disabled"},[t("a",{staticClass:"page-link",attrs:{href:""}},[this._v("…")])])}];__vue_render__$4._withStripped=!0;var __vue_inject_styles__$4=function(e){e&&e("data-v-75effae8_0",{source:"\nul.pagination[data-v-75effae8] {\n    margin-bottom: 0;\n}\n.vbt-per-page-dropdown[data-v-75effae8] {\n    margin-left: 8px;\n}\n",map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/Pagination.vue"],names:[],mappings:";AAwMA;IACA,iBAAA;CACA;AACA;IACA,iBAAA;CACA",file:"Pagination.vue",sourcesContent:['<template>\n    <div>\n        <nav aria-label="Page navigation example">\n            <ul class="pagination">\n                <li :class="{\'disabled\' : disablePreviousButton}" class="page-item" @click.prevent="pageHandler(page-1)">\n                    <a class="page-link" href="" aria-label="Previous">\n                        <span aria-hidden="true">\n                            <slot name="vbt-paginataion-previous-button">\n\n                            </slot>\n                        </span>\n                    </a>\n                </li>\n                <template v-if="!isEmpty">\n                    <li class="page-item" v-if="start > 3" @click.prevent="pageHandler(1)">\n                        <a class="page-link" href=""> 1 </a>\n                    </li>\n                    <li class="page-item disabled" v-if="start > 3">\n                        <a class="page-link" href="">…</a>\n                    </li>\n                    <li class="page-item" v-for="index in range" :key="index" v-bind:class="{ active:  (index == page)}" @click.prevent="pageHandler(index)">\n                        <a class="page-link" href="">{{index}}</a>\n                    </li>\n                    <li class="page-item disabled" v-if="end < totalPages - 2">\n                        <a class="page-link" href="">…</a>\n                    </li>\n                    <li class="page-item" v-if="end < totalPages - 2" @click.prevent="pageHandler(totalPages)">\n                        <a class="page-link" href=""> {{totalPages}} </a>\n                    </li>\n                </template>\n\n                <template v-else>\n                    <li class="page-item disabled">\n                        <a class="page-link" href="">…</a>\n                    </li>\n                </template>\n                <li :class="{\'disabled\' : disableNextButton}" class="page-item" @click.prevent="pageHandler(page+1)">\n                    <a class="page-link" href="" aria-label="Next">\n                        <span aria-hidden="true">\n                            <slot name="vbt-paginataion-next-button">\n\n                            </slot>\n                        </span>\n                    </a>\n                </li>\n                \x3c!-- Number of rows per page starts here --\x3e\n                <div class="dropdown show vbt-per-page-dropdown">\n                    <a class="btn btn-primary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">\n                        {{per_page}}\n                    </a>\n\n                    <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">\n                        <a v-for="(option, key, index) in per_page_options" :key="index" class="dropdown-item" href="" @click.prevent="perPageHandler(option)" v-bind:class="{ active:  (option == per_page)}">\n                            {{option}}\n                        </a>\n                    </div>\n                </div>\n                \x3c!-- Number of rows per page ends here --\x3e\n\n                <div class="input-group col-sm-2">\n                    <input type="number" class="form-control" min="1" step="1" :max="totalPages" placeholder="Go to page" @keyup.enter="gotoPage" v-model.number="go_to_page">\n                </div>\n            </ul>\n        </nav>\n    </div>\n</template>\n\n<script>\n    import range from "lodash/range";\n    import includes from "lodash/includes";\n\n    export default {\n        name: \'Pagination\',\n        props: {\n            page: {\n                type: [String, Number],\n                required: true\n            },\n            per_page: {\n                type: [String, Number],\n                required: true\n            },\n            total: {\n                type: [String, Number],\n                required: true\n            },\n            num_of_visibile_pagination_buttons: {\n                type: [String, Number],\n                default: 7\n            },\n            per_page_options: {\n                type: Array,\n                default: function() {\n                    return [5,10,15]\n                }\n            }\n        },\n        data: function() {\n            return {\n                start: (this.page + 0),\n                end: 0,\n                go_to_page: ""\n            }\n        },\n        mounted() {\n            this.calculatePageRange(true);\n        },\n        methods: {\n            gotoPage() {\n                if (this.go_to_page === "" || !this.isPositiveInteger(this.go_to_page)) {\n                    return;\n                }\n\n                //Handle the new page\n                this.pageHandler(this.go_to_page)           \n            },\n            pageHandler(index) {\n                if (index >= 1 && index <= this.totalPages) {\n                    this.$emit(\'update:page\', index);\n                }\n            },\n            perPageHandler(option) {\n                this.$emit(\'update:per_page\', option);\n            },\n            calculatePageRange(force = false) {\n                //Skip calculating if all pages can be shown\n                if (this.totalPages <= this.num_of_visibile_pagination_buttons) {\n                    this.start = 1;\n                    this.end = this.totalPages;\n                    return;\n                }\n\n                //Skip recalculating if the previous and next pages are already visible\n                if (!force && \n                    (includes(this.range, this.page - 1) || this.page == 1) &&\n                    (includes(this.range, this.page + 1) || this.page == this.totalPages) \n                ) { return; }\n\n                //Current page is the start page minus one\n                this.start = (this.page == 1) ? 1 : this.page - 1;\n\n                //Reserved entries: firstpage, ellipsis (2x), prev. page, last page, current page\n                this.end = this.start + this.num_of_visibile_pagination_buttons - 5;\n\n                //If the user navigates on page one or two, we set start to one (ellipsis pointless)\n                //and can potentially shift up end\n                if (this.start <= 3) {\n                    this.end += 3 - this.start;\n                    this.start = 1;\n                }\n\n                //If the user navigates on the last two pages or out of bounds, we can shift down start\n                //This will also handle end overflow, substract 2 for ellipsis and last page\n                if (this.end >= this.totalPages - 2) {\n                    this.start -= this.end - (this.totalPages - 2);\n                    this.end = this.totalPages;\n                }\n\n                //Handle start underflow\n                this.start = Math.max(this.start, 1);\n            },\n            isPositiveInteger(str) {\n                return /^\\+?(0|[1-9]\\d*)$/.test(str);\n            }\n        },\n        components: {\n        },\n        computed: {\n            totalPages() {\n                return Math.ceil(this.total / this.per_page);\n            },\n            disablePreviousButton() {\n                return this.page == this.start;\n            },\n            disableNextButton() {\n                return this.page == this.end;\n            },\n            range() {\n                return range(this.start, this.end + 1);\n            },\n            isEmpty() {\n                return this.total == 0;\n            }\n\n        },\n        watch: {\n            page(newVal, oldVal) {\n                this.calculatePageRange();\n            },\n            rowCount(newVal, oldVal) {\n                this.calculatePageRange();\n            },\n            totalPages(newVal, oldVal) {\n                this.calculatePageRange();\n            },\n        }\n    }\n<\/script>\n\n<style scoped>\n    ul.pagination {\n        margin-bottom: 0;\n    }\n    .vbt-per-page-dropdown {\n        margin-left: 8px;\n    }\n</style>\n']},media:void 0})},__vue_scope_id__$4="data-v-75effae8",__vue_module_identifier__$4=void 0,__vue_is_functional_template__$4=!1;function __vue_normalize__$4(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Pagination.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__$2(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__$2.styles||(__vue_create_injector__$2.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var Pagination=__vue_normalize__$4({render:__vue_render__$4,staticRenderFns:__vue_staticRenderFns__$4},__vue_inject_styles__$4,__vue_script__$4,__vue_scope_id__$4,__vue_is_functional_template__$4,__vue_module_identifier__$4,__vue_create_injector__$2,void 0),script$5={name:"Simple",props:{column:{type:Object,default:function(){return{}}}},data:function(){return{filterOnPressEnter:!1,debounceRate:60}},mounted:function(){var e=this;has_1(this.column,"filter.init.value")&&(this.$refs.simple_filter_input.value=this.column.filter.init.value),has_1(this.column,"filter.filterOnPressEnter")&&(this.filterOnPressEnter=this.column.filter.filterOnPressEnter),!this.filterOnPressEnter&&has_1(this.column,"filter.debounceRate")&&(this.debounceRate=this.column.filter.debounceRate),EventBus.$on("reset-query",function(){e.$refs.simple_filter_input&&(e.$refs.simple_filter_input.value="")})},methods:{clearFilter:function(){this.$refs.simple_filter_input.value="",this.$emit("clear-filter",this.column)},updateFilterHandler:function(e){this.$emit("update-filter",{value:e.target.value,column:this.column})}},components:{},computed:{showClearButton:function(){return null==this.column.filter.showClearButton||this.column.filter.showClearButton},updateFilter:function(){return debounce_1(this.updateFilterHandler,this.debounceRate)}}},__vue_script__$5=script$5,__vue_render__$5=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",{staticClass:"form-group has-clear-right"},[e.showClearButton?n("span",{staticClass:"form-control-feedback vbt-simple-filter-clear",on:{click:e.clearFilter}},[e._t("vbt-simple-filter-clear-icon")],2):e._e(),e._v(" "),e.filterOnPressEnter?n("input",{ref:"simple_filter_input",staticClass:"form-control",attrs:{type:"text",placeholder:e.column.filter.placeholder},on:{keyup:function(t){if(!("button"in t)&&e._k(t.keyCode,"enter",13,t.key,"Enter"))return null;e.updateFilterHandler(t)}}}):n("input",{ref:"simple_filter_input",staticClass:"form-control",attrs:{type:"text",placeholder:e.column.filter.placeholder},on:{keyup:function(t){t.stopPropagation(),e.updateFilter(t)}}})])},__vue_staticRenderFns__$5=[];__vue_render__$5._withStripped=!0;var __vue_inject_styles__$5=function(e){e&&e("data-v-59254620_0",{source:"\n.vbt-simple-filter-clear[data-v-59254620] {\n    cursor: pointer;\n}\n\n/* Styles for wrapping the search box */\n.main[data-v-59254620] {\n    width: 50%;\n    margin: 50px auto;\n}\n\n/* Bootstrap 4 text input with clear icon on the right */\n.has-clear-right[data-v-59254620] {\n    position: relative;\n}\n.has-clear-right .form-control[data-v-59254620] {\n    padding-right: 2.375rem;\n}\n.has-clear-right .form-control-feedback[data-v-59254620] {\n    position: absolute;\n    top: 0;\n    right: 0;\n    z-index: 2;\n    display: block;\n    width: 2.375rem;\n    height: 2.375rem;\n    line-height: 2.375rem;\n    text-align: center;\n}\n.has-clear-right .form-control-feedback[data-v-59254620]:hover {\n    color: red;\n}\n\n",map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/Simple.vue"],names:[],mappings:";AAoFA;IACA,gBAAA;CACA;;AAEA,wCAAA;AAEA;IACA,WAAA;IACA,kBAAA;CACA;;AAEA,yDAAA;AAEA;IACA,mBAAA;CACA;AAEA;IACA,wBAAA;CACA;AAEA;IACA,mBAAA;IACA,OAAA;IACA,SAAA;IACA,WAAA;IACA,eAAA;IACA,gBAAA;IACA,iBAAA;IACA,sBAAA;IACA,mBAAA;CACA;AAEA;IACA,WAAA;CACA",file:"Simple.vue",sourcesContent:['<template>\n  <div class="form-group has-clear-right">\n    <span v-if="showClearButton" class="form-control-feedback vbt-simple-filter-clear" @click="clearFilter">\n        <slot name="vbt-simple-filter-clear-icon">\n\n        </slot>\n    </span>\n    <input v-if="filterOnPressEnter" type="text" ref="simple_filter_input" class="form-control" :placeholder="column.filter.placeholder" @keyup.enter="updateFilterHandler($event)">\n    <input v-else type="text" ref="simple_filter_input" class="form-control" :placeholder="column.filter.placeholder" @keyup.stop="updateFilter($event)">\n  </div>\n</template>\n\n<script>\n    import debounce from "lodash/debounce";\n    import has from "lodash/has";\n\n\n    import {\n        EventBus\n    } from \'../../event-bus.js\';\n\n    export default {\n        name: "Simple",\n        props: {\n            column: {\n                type: Object,\n                default: function() {\n                    return {};\n                }\n            },\n        },\n        data: function() {\n            return {\n                filterOnPressEnter: false,\n                debounceRate: 60\n            };\n        },\n        mounted() {\n            if (has(this.column,\'filter.init.value\')) {\n                this.$refs.simple_filter_input.value = this.column.filter.init.value;\n            }\n\n            if (has(this.column,\'filter.filterOnPressEnter\')) {\n                this.filterOnPressEnter = this.column.filter.filterOnPressEnter;\n            }\n\n            if (!this.filterOnPressEnter && has(this.column,\'filter.debounceRate\')) {\n                this.debounceRate = this.column.filter.debounceRate;\n            }\n\n            EventBus.$on(\'reset-query\', () => {\n                if (this.$refs.simple_filter_input) {\n                    this.$refs.simple_filter_input.value = "";\n                }\n            });\n        },\n        methods: {\n            clearFilter() {\n                this.$refs.simple_filter_input.value = "";\n                this.$emit(\'clear-filter\',this.column);\n            },\n            // TODO - configurable debouncing\n            updateFilterHandler: function (event) {\n                this.$emit(\'update-filter\', {\n                    "value": event.target.value,\n                    "column": this.column\n                });\n            },\n        },\n        components: {\n        },\n        computed: {\n            showClearButton() {\n                return (this.column.filter.showClearButton == undefined) ? true : this.column.filter.showClearButton;\n            },\n            updateFilter () {\n                return debounce(this.updateFilterHandler, this.debounceRate);\n            },\n        }\n    };\n<\/script>\n\n<style scoped>\n\n    .vbt-simple-filter-clear {\n        cursor: pointer;\n    }\n\n    /* Styles for wrapping the search box */\n\n    .main {\n        width: 50%;\n        margin: 50px auto;\n    }\n\n    /* Bootstrap 4 text input with clear icon on the right */\n\n    .has-clear-right {\n        position: relative;\n    }\n\n    .has-clear-right .form-control {\n        padding-right: 2.375rem;\n    }\n\n    .has-clear-right .form-control-feedback {\n        position: absolute;\n        top: 0;\n        right: 0;\n        z-index: 2;\n        display: block;\n        width: 2.375rem;\n        height: 2.375rem;\n        line-height: 2.375rem;\n        text-align: center;\n    }\n\n    .has-clear-right .form-control-feedback:hover {\n        color: red;\n    }\n\n</style>\n']},media:void 0})},__vue_scope_id__$5="data-v-59254620",__vue_module_identifier__$5=void 0,__vue_is_functional_template__$5=!1;function __vue_normalize__$5(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/Simple.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__$3(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__$3.styles||(__vue_create_injector__$3.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var Simple=__vue_normalize__$5({render:__vue_render__$5,staticRenderFns:__vue_staticRenderFns__$5},__vue_inject_styles__$5,__vue_script__$5,__vue_scope_id__$5,__vue_is_functional_template__$5,__vue_module_identifier__$5,__vue_create_injector__$3,void 0),script$6={name:"MultiSelectItem",props:{column:{type:Object,default:function(){return{}}},option:{type:Object,default:function(){return{name:"option one",value:"option one"}}},index:{type:Number|String,default:0},isSingleMode:{type:Boolean,default:!0},isAllOptionsSelected:{type:Boolean,default:!1},selectedOptionIndexes:{type:Array,default:function(){return[]}}},data:function(){return{option_selected:!1,selected_value:""}},methods:{handleSelect:function(){this.option_selected?this.$emit("on-deselect-option",this.index):this.$emit("on-select-option",this.index)}},watch:{selectedOptionIndexes:{handler:function(e,t){var n=cloneDeep_1(e);this.option_selected=includes_1(n,this.index)},deep:!0},option_selected:function(e,t){this.selected_value=e?this.option.value:""}}},__vue_script__$6=script$6,__vue_render__$6=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",[n("a",{staticClass:"dropdown-item",attrs:{href:""},on:{click:function(t){t.preventDefault(),e.handleSelect()}}},[e.isSingleMode?n("div",{staticClass:"custom-control custom-radio"},[n("input",{directives:[{name:"model",rawName:"v-model",value:e.selected_value,expression:"selected_value"}],staticClass:"custom-control-input",attrs:{type:"radio"},domProps:{value:e.option.value,checked:e._q(e.selected_value,e.option.value)},on:{change:function(t){e.selected_value=e.option.value}}}),e._v(" "),n("label",{staticClass:"custom-control-label"},[e._v(e._s(e.option.name))])]):n("div",{staticClass:"custom-control custom-checkbox"},[n("input",{directives:[{name:"model",rawName:"v-model",value:e.option_selected,expression:"option_selected"}],staticClass:"custom-control-input vbt-checkbox",attrs:{type:"checkbox"},domProps:{checked:Array.isArray(e.option_selected)?e._i(e.option_selected,null)>-1:e.option_selected},on:{change:function(t){var n=e.option_selected,r=t.target,i=!!r.checked;if(Array.isArray(n)){var a=e._i(n,null);r.checked?a<0&&(e.option_selected=n.concat([null])):a>-1&&(e.option_selected=n.slice(0,a).concat(n.slice(a+1)))}else e.option_selected=i}}}),e._v(" "),n("label",{staticClass:"custom-control-label"},[e._v(e._s(e.option.name))])])])])},__vue_staticRenderFns__$6=[];__vue_render__$6._withStripped=!0;var __vue_inject_styles__$6=void 0,__vue_scope_id__$6=void 0,__vue_module_identifier__$6=void 0,__vue_is_functional_template__$6=!1;function __vue_normalize__$6(e,t,n,r,i,a,s,o){var l=("function"==typeof n?n.options:n)||{};return l.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/MultiSelectItem.vue",l.render||(l.render=e.render,l.staticRenderFns=e.staticRenderFns,l._compiled=!0,i&&(l.functional=!0)),l._scopeId=r,l}var MultiSelectItem=__vue_normalize__$6({render:__vue_render__$6,staticRenderFns:__vue_staticRenderFns__$6},__vue_inject_styles__$6,__vue_script__$6,__vue_scope_id__$6,__vue_is_functional_template__$6,__vue_module_identifier__$6,void 0,void 0),script$7={name:"MultiSelectAllItem",props:{isAllOptionsSelected:{type:Boolean,default:!1},text:{type:String,default:"Any"}},data:function(){return{option_selected:!1}},methods:{handleSelect:function(){this.option_selected?this.$emit("on-deselect-all-option"):this.$emit("on-select-all-option",this.index)}},watch:{isAllOptionsSelected:function(e,t){this.option_selected=e}}},__vue_script__$7=script$7,__vue_render__$7=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",[n("a",{staticClass:"dropdown-item",attrs:{href:""},on:{click:function(t){t.preventDefault(),e.handleSelect()}}},[n("div",{staticClass:"custom-control custom-checkbox"},[n("input",{directives:[{name:"model",rawName:"v-model",value:e.option_selected,expression:"option_selected"}],staticClass:"custom-control-input vbt-checkbox",attrs:{type:"checkbox"},domProps:{checked:Array.isArray(e.option_selected)?e._i(e.option_selected,null)>-1:e.option_selected},on:{change:function(t){var n=e.option_selected,r=t.target,i=!!r.checked;if(Array.isArray(n)){var a=e._i(n,null);r.checked?a<0&&(e.option_selected=n.concat([null])):a>-1&&(e.option_selected=n.slice(0,a).concat(n.slice(a+1)))}else e.option_selected=i}}}),e._v(" "),n("label",{staticClass:"custom-control-label"},[e._v(e._s(e.text))])])])])},__vue_staticRenderFns__$7=[];__vue_render__$7._withStripped=!0;var __vue_inject_styles__$7=void 0,__vue_scope_id__$7=void 0,__vue_module_identifier__$7=void 0,__vue_is_functional_template__$7=!1;function __vue_normalize__$7(e,t,n,r,i,a,s,o){var l=("function"==typeof n?n.options:n)||{};return l.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/MultiSelectAllItem.vue",l.render||(l.render=e.render,l.staticRenderFns=e.staticRenderFns,l._compiled=!0,i&&(l.functional=!0)),l._scopeId=r,l}var MultiSelectAllItem=__vue_normalize__$7({render:__vue_render__$7,staticRenderFns:__vue_staticRenderFns__$7},__vue_inject_styles__$7,__vue_script__$7,__vue_scope_id__$7,__vue_is_functional_template__$7,__vue_module_identifier__$7,void 0,void 0),script$8={name:"MultiSelect",props:{column:{type:Object,default:function(){return{}}},options:{type:Array,default:function(){return[]}}},data:function(){return{selected_option_indexes:[],canEmit:!1}},mounted:function(){var e=this;has_1(this.column,"filter.closeDropdownOnSelection")&&this.column.filter.closeDropdownOnSelection||this.$refs.vbt_dropdown_menu.addEventListener("click",function(e){e.stopPropagation()},!1),EventBus.$on("reset-query",function(){e.selected_option_indexes=[]});var t=this.optionsCount-1;if(has_1(this.column,"filter.init.value"))if(this.isSingleMode){var n=this.column.filter.init.value;if(n>t||n<0)return;this.addOption(n)}else Array.isArray(this.column.filter.init.value)?this.column.filter.init.value.forEach(function(n){n>t||n<0||e.addOption(n)}):console.log("Initial value for 'multi' mode should be an array");this.$nextTick(function(){e.canEmit=!0})},methods:{addOption:function(e){this.isSingleMode?(this.resetSelectedOptions(),this.selected_option_indexes.push(e)):-1==findIndex_1(this.selected_option_indexes,function(t){return t==e})&&this.selected_option_indexes.push(e)},selectAllOptions:function(){this.resetSelectedOptions(),this.selected_option_indexes=range_1(this.options.length)},removeOption:function(e){if(this.isSingleMode)this.resetSelectedOptions();else{var t=findIndex_1(this.selected_option_indexes,function(t){return t==e});t>-1&&this.selected_option_indexes.splice(t,1)}},resetSelectedOptions:function(){this.selected_option_indexes=[]}},components:{MultiSelectItem:MultiSelectItem,MultiSelectAllItem:MultiSelectAllItem},computed:{optionsCount:function(){return this.options.length},title:function(){var e=this.column.filter.placeholder?this.column.filter.placeholder:"Select options";return 0===this.selected_option_indexes.length?e:this.selected_option_indexes.length>0&&this.selected_option_indexes.length<=1?this.options[this.selected_option_indexes[0]].name:this.selected_option_indexes.length+" selected"},mode:function(){var e="single";return has_1(this.column.filter,"mode")&&"multi"==this.column.filter.mode&&(e="multi"),e},isSingleMode:function(){return"single"==this.mode},isAllOptionsSelected:function(){return this.options.length===this.selected_option_indexes.length},showSelectAllCheckbox:function(){return!has_1(this.column.filter,"select_all_checkbox")||this.column.filter.select_all_checkbox.visibility},selectAllCheckboxText:function(){return has_1(this.column.filter,"select_all_checkbox")&&has_1(this.column.filter.select_all_checkbox,"text")?this.column.filter.select_all_checkbox.text:"Select All"}},watch:{selected_option_indexes:function(e,t){if(this.canEmit){var n=filter_1(this.options,function(t,n){return includes_1(e,n)}),r={};r.column=cloneDeep_1(this.column),r.selected_options=[],n.forEach(function(e){r.selected_options.push(e.value)}),this.$emit("update-multi-select-filter",r)}}}},__vue_script__$8=script$8,__vue_render__$8=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",[n("div",{staticClass:"dropdown"},[n("a",{staticClass:"btn btn-secondary dropdown-toggle",attrs:{href:"#",role:"button",id:"multifilter_"+e.column.name,"data-toggle":"dropdown","aria-haspopup":"true","aria-expanded":"false"}},[e._v("\n                "+e._s(e.title)+"\n            ")]),e._v(" "),n("div",{ref:"vbt_dropdown_menu",staticClass:"dropdown-menu scrollable-menu",attrs:{"aria-labelledby":"dropdownMenuLink"}},[!e.isSingleMode&&e.showSelectAllCheckbox?n("multi-select-all-item",{attrs:{text:e.selectAllCheckboxText,"is-all-options-selected":e.isAllOptionsSelected},on:{"on-deselect-all-option":function(t){e.selected_option_indexes=[]},"on-select-all-option":e.selectAllOptions}}):e._e(),e._v(" "),e._l(e.options,function(t,r){return n("multi-select-item",{key:r,attrs:{index:r,option:t,"is-single-mode":e.isSingleMode,selectedOptionIndexes:e.selected_option_indexes},on:{"on-select-option":e.addOption,"on-deselect-option":e.removeOption}})})],2)])])},__vue_staticRenderFns__$8=[];__vue_render__$8._withStripped=!0;var __vue_inject_styles__$8=function(e){e&&e("data-v-1c8ea2b5_0",{source:"\n.scrollable-menu[data-v-1c8ea2b5] {\n    height: auto;\n    max-height: 200px;\n    overflow-x: hidden;\n}\n",map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/MultiSelect.vue"],names:[],mappings:";AAgNA;IACA,aAAA;IACA,kBAAA;IACA,mBAAA;CACA",file:"MultiSelect.vue",sourcesContent:['<template>\n    <div>\n        <div class="dropdown">\n            <a class="btn btn-secondary dropdown-toggle" href="#" role="button" :id="\'multifilter_\'+column.name" data-toggle="dropdown"  aria-haspopup="true" aria-expanded="false">\n                    {{title}}\n                </a>\n            <div ref="vbt_dropdown_menu" class="dropdown-menu scrollable-menu" aria-labelledby="dropdownMenuLink">\n                <multi-select-all-item v-if="!isSingleMode && showSelectAllCheckbox" :text="selectAllCheckboxText" :is-all-options-selected="isAllOptionsSelected" @on-deselect-all-option="selected_option_indexes=[]" @on-select-all-option="selectAllOptions"></multi-select-all-item>\n                <multi-select-item v-for="(option, key) in options" :key="key" :index="key" :option="option" :is-single-mode="isSingleMode" :selectedOptionIndexes="selected_option_indexes" @on-select-option="addOption" @on-deselect-option="removeOption"></multi-select-item>\n            </div>\n        </div>\n    </div>\n</template>\n\n<script>\nimport findIndex from "lodash/findIndex";\nimport range from "lodash/range";\nimport filter from "lodash/filter";\nimport includes from "lodash/includes";\nimport map from "lodash/map";\nimport join from "lodash/join";\nimport has from "lodash/has";\nimport cloneDeep from "lodash/cloneDeep";\n\nimport MultiSelectItem from "./MultiSelectItem.vue";\nimport MultiSelectAllItem from "./MultiSelectAllItem.vue";\n\nimport {\n    EventBus\n} from \'../../event-bus.js\';\n\nexport default {\n    name: "MultiSelect",\n    props: {\n        column: {\n            type: Object,\n            default: function () {\n                return {\n\n                };\n            }\n        },\n        options: {\n            type: Array,\n            default: function () {\n                return []\n            }\n        }\n    },\n    data: function () {\n        return {\n            selected_option_indexes: [],\n            canEmit: false\n        };\n    },\n    mounted() {\n        if (!has(this.column,"filter.closeDropdownOnSelection") || !this.column.filter.closeDropdownOnSelection) {\n            this.$refs.vbt_dropdown_menu.addEventListener("click",function(e){\n                e.stopPropagation();\n            },false);\n        }\n\n        EventBus.$on(\'reset-query\', () => {\n            this.selected_option_indexes = [];\n        });\n\n        let lastIndex = this.optionsCount - 1;\n\n        if (has(this.column,\'filter.init.value\')) {\n            if (this.isSingleMode) {\n                let index = this.column.filter.init.value;\n                if (index > lastIndex || index < 0) return;\n                this.addOption(index)\n            } else {\n                if (Array.isArray(this.column.filter.init.value)) {\n                    this.column.filter.init.value.forEach(index => {\n                        if (index > lastIndex || index < 0) return;\n                        this.addOption(index)\n                    });\n                } else {\n                    console.log("Initial value for \'multi\' mode should be an array");\n                }\n            }\n        }\n\n        this.$nextTick(() => { this.canEmit = true });\n    },\n    methods: {\n        addOption(index) {\n            if (this.isSingleMode) {\n                this.resetSelectedOptions();\n                this.selected_option_indexes.push(index);\n            } else {\n                let res = findIndex(this.selected_option_indexes, function (option_index) {\n                    return option_index == index;\n                });\n                if (res == -1) {\n                    this.selected_option_indexes.push(index);\n                }\n            }\n        },\n        selectAllOptions() {\n            this.resetSelectedOptions();\n            this.selected_option_indexes = range(this.options.length);\n        },\n        removeOption(index) {\n            if (this.isSingleMode) {\n                this.resetSelectedOptions();\n            } else {\n                let res = findIndex(this.selected_option_indexes, function (option_index) {\n                    return option_index == index;\n                });\n                if (res > -1) {\n                    this.selected_option_indexes.splice(res, 1);\n                }\n            }\n        },\n\n        resetSelectedOptions() {\n            this.selected_option_indexes = [];\n        }\n    },\n    components: {\n        MultiSelectItem,\n        MultiSelectAllItem\n    },\n    computed: {\n        optionsCount() {\n            return this.options.length;\n        },\n        title() {\n            let title = (this.column.filter.placeholder) ? (this.column.filter.placeholder) : "Select options";\n\n            if (this.selected_option_indexes.length === 0) {\n                return title;\n            }\n\n            if (this.selected_option_indexes.length > 0 && this.selected_option_indexes.length <= 1) {\n                return this.options[this.selected_option_indexes[0]].name;\n                // let filtered_options = filter(this.options, (option, index) => {\n                //     return includes(this.selected_option_indexes, index)\n                // });\n                // let names = map(filtered_options, (option) => {\n                //     return option.name\n                // });\n                // return join(names, ",  ");\n            } else {\n                return this.selected_option_indexes.length + " selected";\n            }\n\n        },\n\n        mode() {\n            let mode = "single";\n            if (has(this.column.filter, "mode") && this.column.filter.mode == "multi") {\n                mode = "multi";\n            }\n            return mode;\n        },\n\n        isSingleMode() {\n            return (this.mode == "single");\n        },\n\n        isAllOptionsSelected() {\n            return this.options.length === this.selected_option_indexes.length;\n        },\n\n        showSelectAllCheckbox() {\n            if (!has(this.column.filter,"select_all_checkbox")) {\n                return true;\n            } else {\n                return this.column.filter.select_all_checkbox.visibility;\n            }\n        },\n\n        selectAllCheckboxText() {\n            if (!has(this.column.filter,"select_all_checkbox")) {\n                return "Select All";\n            } else {\n                return (has(this.column.filter.select_all_checkbox,"text")) ? this.column.filter.select_all_checkbox.text : "Select All"\n            }\n        }\n    },\n    watch: {\n        selected_option_indexes(newVal, oldVal) {\n\n            if (!this.canEmit) return;\n\n            let filtered_options = filter(this.options, (option, index) => {\n                return includes(newVal, index)\n            });\n\n            let payload = {};\n            payload.column = cloneDeep(this.column);\n            payload.selected_options = [];\n\n            filtered_options.forEach(option => {\n                payload.selected_options.push(option.value);\n            });\n\n            this.$emit(\'update-multi-select-filter\', payload);\n        }\n    },\n};\n<\/script>\n\n<style scoped>\n.scrollable-menu {\n    height: auto;\n    max-height: 200px;\n    overflow-x: hidden;\n}\n</style>\n']},media:void 0})},__vue_scope_id__$8="data-v-1c8ea2b5",__vue_module_identifier__$8=void 0,__vue_is_functional_template__$8=!1;function __vue_normalize__$8(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/Filters/MultiSelect.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__$4(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__$4.styles||(__vue_create_injector__$4.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var MultiSelect=__vue_normalize__$8({render:__vue_render__$8,staticRenderFns:__vue_staticRenderFns__$8},__vue_inject_styles__$8,__vue_script__$8,__vue_scope_id__$8,__vue_is_functional_template__$8,__vue_module_identifier__$8,__vue_create_injector__$4,void 0),script$9={name:"VueBootstrap4Table",props:{rows:{type:Array,required:!0},columns:{type:Array,required:!0},totalRows:{type:Number,default:0},showLoader:{type:Boolean,default:!1},config:{type:Object,default:function(){return{}}},classes:{type:Object,default:function(){return{}}},actions:{type:Array,default:function(){return[]}},customFilters:{type:Array,default:function(){return[]}}},data:function(){return{vbt_rows:[],vbt_columns:[],query:{sort:[],filters:[],global_search:""},page:1,per_page:10,original_rows:[],num_of_visibile_pagination_buttons:5,temp_filtered_results:[],pagination:!0,pagination_info:!0,checkbox_rows:!1,selected_items:[],highlight_row_hover:!0,highlight_row_hover_color:"#d6d6d6",rows_selectable:!1,allRowsSelected:!1,multi_column_sort:!1,loaderText:"Loading...",card_title:"",global_search:{placeholder:"Enter search text",class:"",visibility:!0,case_sensitive:!1,showClearButton:!0,searchOnPressEnter:!1,searchDebounceRate:60,init:{value:""}},per_page_options:[5,10,15],show_refresh_button:!0,show_reset_button:!0,server_mode:!1,total_rows:0,card_mode:!0,selected_rows_info:!1,lastSelectedItemIndex:null,isFirstTime:!0,isResponsive:!0,preservePageOnDataChange:!1,canEmitQueries:!1}},mounted:function(){var e=this;this.vbt_rows=cloneDeep_1(this.rows),this.vbt_columns=cloneDeep_1(this.columns);var t=this;this.original_rows=map_1(this.vbt_rows,function(e,n){var r={};return t.hasUniqueId||(r.vbt_id=n+1),extend({},e,r)}),this.vbt_columns=map_1(this.vbt_columns,function(e,t){var n={};return n.vbt_col_id=t+1,extend({},e,n)}),this.initConfig(),this.initialSort(),this.initFilterQueries(),this.global_search.visibility&&this.$nextTick(function(){e.initGlobalSearch()}),this.$nextTick(function(){e.server_mode?(e.canEmitQueries=!0,e.emitQueryParams()):e.filter(!1,!0)}),this.handleShiftKey()},components:{Row:Row,CheckBox:CheckBox,SelectAllRowsCheckBox:SelectAllRowsCheckBox,Simple:Simple,MultiSelect:MultiSelect,SortIcon:SortIcon,Pagination:Pagination},methods:{initConfig:function(){isEmpty_1(this.config)||(this.pagination=!has_1(this.config,"pagination")||this.config.pagination,this.num_of_visibile_pagination_buttons=has_1(this.config,"num_of_visibile_pagination_buttons")?this.config.num_of_visibile_pagination_buttons:7,this.per_page_options=has_1(this.config,"per_page_options")?this.config.per_page_options:[5,10,15],this.per_page=has_1(this.config,"per_page")?this.config.per_page:10,this.page=has_1(this.config,"page")?this.config.page:1,this.checkbox_rows=!!has_1(this.config,"checkbox_rows")&&this.config.checkbox_rows,this.highlight_row_hover=!has_1(this.config,"highlight_row_hover")||this.config.highlight_row_hover,this.highlight_row_hover_color=has_1(this.config,"highlight_row_hover_color")?this.config.highlight_row_hover_color:"#d6d6d6",this.rows_selectable=!!has_1(this.config,"rows_selectable")&&this.config.rows_selectable,this.multi_column_sort=!!has_1(this.config,"multi_column_sort")&&this.config.multi_column_sort,this.pagination_info=!has_1(this.config,"pagination_info")||this.config.pagination_info,this.card_title=has_1(this.config,"card_title")?this.config.card_title:"",has_1(this.config,"global_search")&&(this.global_search.placeholder=has_1(this.config.global_search,"placeholder")?this.config.global_search.placeholder:"Enter search text",this.global_search.visibility=!has_1(this.config.global_search,"visibility")||this.config.global_search.visibility,this.global_search.case_sensitive=!!has_1(this.config.global_search,"case_sensitive")&&this.config.global_search.case_sensitive,this.global_search.showClearButton=!has_1(this.config.global_search,"showClearButton")||this.config.global_search.showClearButton,this.global_search.searchOnPressEnter=!!has_1(this.config.global_search,"searchOnPressEnter")&&this.config.global_search.searchOnPressEnter,this.global_search.searchDebounceRate=has_1(this.config.global_search,"searchDebounceRate")?this.config.global_search.searchDebounceRate:60,this.global_search.class=has_1(this.config.global_search,"class")?this.config.global_search.class:"",this.global_search.init.value=has_1(this.config.global_search,"init.value")?this.config.global_search.init.value:""),this.show_refresh_button=!has_1(this.config,"show_refresh_button")||this.config.show_refresh_button,this.show_reset_button=!has_1(this.config,"show_reset_button")||this.config.show_reset_button,this.server_mode=!!has_1(this.config,"server_mode")&&this.config.server_mode,this.card_mode=!has_1(this.config,"card_mode")||this.config.card_mode,this.selected_rows_info=!!has_1(this.config,"card_mode")&&this.config.selected_rows_info,this.preservePageOnDataChange=!!has_1(this.config,"preservePageOnDataChange")&&this.config.preservePageOnDataChange,this.loaderText=has_1(this.config,"loaderText")?this.config.loaderText:this.loaderText)},initialSort:function(){var e=this;filter_1(this.vbt_columns,function(e){return has_1(e,"initial_sort")&&1==e.initial_sort}).some(function(t){if(-1==findIndex_1(e.query.sort,{vbt_col_id:t.vbt_col_id})){var n="asc";has_1(t,"initial_sort_order")&&(includes_1(["asc","desc"],t.initial_sort_order)?n=t.initial_sort_order:console.log("invalid initial_sort_order, so setting it to default")),e.query.sort.push({vbt_col_id:t.vbt_col_id,name:t.name,order:n,caseSensitive:e.isSortCaseSensitive(t)})}if(!e.multi_column_sort)return!0})},initGlobalSearch:function(){this.$refs.global_search.value=this.global_search.init.value,this.query.global_search=this.global_search.init.value},hasFilter:function(e){return has_1(e,"filter.type")},clearFilter:function(e){var t=this.getFilterIndex(e);-1!==t&&this.query.filters.splice(t,1)},getFilterIndex:function(e){return findIndex_1(this.query.filters,{name:e.name})},initFilterQueries:function(){var e=this;this.vbt_columns.forEach(function(t){if(has_1(t,"filter"))if("simple"==t.filter.type){if(!has_1(t,"filter.init.value"))return;e.updateFilter({value:t.filter.init.value,column:t})}else if("select"==t.filter.type){if(!has_1(t,"filter.init.value"))return;var n=[];"multi"==t.filter.mode?Array.isArray(t.filter.init.value)?n=t.filter.init.value:console.log("Initial value for 'multi' mode should be an array"):"single"==t.filter.mode&&(Number.isInteger(t.filter.init.value)&&t.filter.init.value>-1?n=[t.filter.init.value]:console.log("Initial value for 'single' mode should be a single number and greater than -1"));var r=t.filter.options.filter(function(e,t){return includes_1(n,t)}).map(function(e){return e.value});e.updateMultiSelectFilter({selected_options:r,column:t})}})},isSortCaseSensitive:function(e){return null==e.sortCaseSensitive||e.sortCaseSensitive},updateSortQuery:function(e){var t=findIndex_1(this.query.sort,{vbt_col_id:e.vbt_col_id});-1==t?(this.multi_column_sort||(this.query.sort=[]),this.query.sort.push({vbt_col_id:e.vbt_col_id,name:e.name,order:"asc",caseSensitive:this.isSortCaseSensitive(e)})):this.query.sort[t].order="asc"==this.query.sort[t].order?"desc":"asc"},isShiftSelection:function(e,t){return 1==e&&null!=this.lastSelectedItemIndex&&this.lastSelectedItemIndex!=t},handleAddRow:function(e){var t=this,n=this.vbt_rows[e.rowIndex];this.isShiftSelection(e.shiftKey,e.rowIndex)?this.getShiftSelectionRows(e.rowIndex).forEach(function(e){t.addSelectedItem(e)}):this.addSelectedItem(n);this.$emit("on-select-row",{selected_items:cloneDeep_1(this.selected_items),selected_item:n});0==(this.server_mode&&!this.hasUniqueId?differenceWith_1(this.vbt_rows,this.selected_items,isEqual_1):differenceBy_1(this.vbt_rows,this.selected_items,this.uniqueId)).length?this.allRowsSelected=!0:this.allRowsSelected=!1,this.lastSelectedItemIndex=e.rowIndex},getActionButtonClass:function(e){return has_1(e,"class")?e.class:" btn-secondary"},handleRemoveRow:function(e){var t=this,n=this.vbt_rows[e.rowIndex];this.isShiftSelection(e.shiftKey,e.rowIndex)?this.getShiftSelectionRows(e.rowIndex).forEach(function(e){t.removeSelectedItem(e)}):this.removeSelectedItem(n);this.$emit("on-unselect-row",{selected_items:cloneDeep_1(this.selected_items),unselected_item:n}),this.allRowsSelected=!1,this.lastSelectedItemIndex=e.rowIndex},addSelectedItem:function(e){var t=this;-1==(this.server_mode&&!this.hasUniqueId?findIndex_1(this.selected_items,function(t){return isEqual_1(t,e)}):findIndex_1(this.selected_items,function(n){return n[t.uniqueId]==e[t.uniqueId]}))&&this.selected_items.push(e)},selectAllItems:function(){var e,t=[];t=this.server_mode&&!this.hasUniqueId?differenceWith_1(this.vbt_rows,this.selected_items,isEqual_1):differenceBy_1(this.vbt_rows,this.selected_items,this.uniqueId),(e=this.selected_items).push.apply(e,t),this.$emit("on-all-select-rows",{selected_items:cloneDeep_1(this.selected_items)})},unSelectAllItems:function(){var e=[];if(this.server_mode&&!this.hasUniqueId){var t=intersectionWith_1(this.vbt_rows,this.selected_items,isEqual_1);e=differenceWith_1(this.selected_items,t,isEqual_1)}else{var n=intersectionBy_1(this.vbt_rows,this.selected_items,this.uniqueId);e=differenceBy_1(this.selected_items,n,this.uniqueId)}this.selected_items=e,this.$emit("on-all-unselect-rows",{selected_items:cloneDeep_1(this.selected_items)})},removeSelectedItem:function(e){var t=this;this.selected_items.some(function(n,r){if(isEqual_1(e,n))return t.selected_items.splice(r,1),!0})},getShiftSelectionRows:function(e){var t=0,n=0;return this.lastSelectedItemIndex<e?(t=this.lastSelectedItemIndex,n=e+1):this.lastSelectedItemIndex>e&&(t=e,n=this.lastSelectedItemIndex+1),this.vbt_rows.slice(t,n)},updateFilter:function(e){var t="number"==typeof e.value?e.value.toString():e.value,n=e.column,r=findIndex_1(this.query.filters,{name:n.name});-1==r?""!==t&&this.query.filters.push({type:n.filter.type,name:n.name,text:t.trim(),config:n.filter}):""===t?this.query.filters.splice(r,1):this.query.filters[r].text=t.trim()},updateMultiSelectFilter:function(e){var t=e.selected_options,n=e.column,r=findIndex_1(this.query.filters,{name:n.name});if(-1==r){if(0===t.length)return;this.query.filters.push({type:n.filter.type,mode:n.filter.mode,name:n.name,selected_options:t,config:n.filter})}else 0===t.length?this.query.filters.splice(r,1):this.query.filters[r].selected_options=t},sort:function(){if(0!=this.query.sort.length){var e=this.query.sort.map(function(e){return e.order});this.temp_filtered_results=orderBy_1(this.temp_filtered_results,this.query.sort.map(function(e){return function(t){var n=get_1(t,e.name);return e.caseSensitive?null!=n?n:"":null!=n?n.toString().toLowerCase():""}}),e)}this.paginateFilter()},filter:function(e,t){var n=this;void 0===e&&(e=!0),void 0===t&&(t=!1);var r=filter_1(this.original_rows,function(e){var t=!0;return n.query.filters.some(function(r,i){if("simple"===r.type){if(!n.simpleFilter(get_1(e,r.name),r.text,r.config))return t=!1,!0;t=!0}else if("select"===r.type){if(!n.multiSelectFilter(get_1(e,r.name),r.selected_options,r.config))return t=!1,!0;t=!0}else if("custom"===r.type){var a=findIndex_1(n.vbt_columns,{name:r.name});if(a>-1){var s=n.vbt_columns[a];if(s.filter.validator){var o=s.filter.validator(get_1(e,r.name),r.text);if(1!=o&&null!=o)return t=!1,!0;t=!0}else t=!0}else t=!0}}),t});if(this.temp_filtered_results=r,""!==this.query.global_search&&0!=this.rowCount&&(this.temp_filtered_results=this.globalSearch(this.temp_filtered_results)),this.sort(),e||0==this.rowCount)this.page=1;else if(!t){var i=Math.ceil(this.rowCount/this.per_page);this.page=this.page<=i?this.page:i}},globalSearch:function(e){var t=this;return filter_1(e,function(e){var n=!1;return t.vbt_columns.some(function(r,i){var a=get_1(e,r.name),s=t.query.global_search;null!=a&&void 0!==a||(a=""),"string"!=typeof a&&(a=a.toString()),"string"!=typeof s&&(s=s.toString()),t.global_search.case_sensitive||(a=a.toLowerCase(),s=s.toLowerCase()),a.indexOf(s)>-1&&(n=!0)}),n})},simpleFilter:function(e,t,n){return null!=e&&void 0!==e||(e=""),"string"!=typeof e&&(e=e.toString()),"string"!=typeof t&&(e=t.toString()),!!has_1(n,"case_sensitive")&&n.case_sensitive||(e=e.toLowerCase(),t=t.toLowerCase()),e.indexOf(t)>-1},multiSelectFilter:function(e,t,n){return null!=e&&void 0!==e||(e=""),e="string"!=typeof e?e.toString().toLowerCase():e.toLowerCase(),t=map_1(t,function(e){return"string"!=typeof e?e.toString().toLowerCase():e.toLowerCase()}),includes_1(t,e)},paginateFilter:function(){if(this.pagination){var e=(this.page-1)*this.per_page,t=e+this.per_page;this.vbt_rows=this.temp_filtered_results.slice(e,t)}else this.vbt_rows=cloneDeep_1(this.temp_filtered_results)},selectAllCheckbox:function(){this.allRowsSelected||this.currentPageSelectionCount>0?(this.unSelectAllItems(),this.allRowsSelected=!1):(this.selectAllItems(),this.allRowsSelected=!0)},isSortableColumn:function(e){return!!has_1(e,"sort")&&e.sort},getValueFromRow:function(e,t){return get_1(e,t)},getCellSlotName:function(e){return has_1(e,"slot_name")?e.slot_name:e.name.replace(/\./g,"_")},resetSort:function(){this.query.sort=[],this.filter(!this.preservePageOnDataChange)},updateGlobalSearchHandler:function(e){this.query.global_search=e},clearGlobalSearch:function(){this.query.global_search="",this.$refs.global_search.value=""},resetQuery:function(){this.query={sort:[],filters:[],global_search:""},this.global_search.visibility&&(this.$refs.global_search.value=""),EventBus.$emit("reset-query")},emitQueryParams:function(e){if(void 0===e&&(e=null),this.server_mode&&this.canEmitQueries){var t=cloneDeep_1(this.query),n=map_1(t.sort,function(e){return omit_1(e,"vbt_col_id")}),r=map_1(t.filters,function(e){return omit_1(e,"config")}),i=t.global_search,a=clone_1(this.per_page);null==e&&(this.preservePageOnDataChange?e=this.page:(this.page=1,e=1));var s={sort:n,filters:r,global_search:i,per_page:a,page:e};this.$emit("on-change-query",s)}},columnClasses:function(e){var t="";return has_1(e,"column_text_alignment")&&includes_1(["text-justify","text-right","text-left","text-center"],e.column_text_alignment)?t=t+" "+e.column_text_alignment:t+=" text-center",has_1(e,"column_classes")&&(t=t+" "+e.column_classes),this.isSortableColumn(e)&&(t+=" vbt-sort-cursor"),t},handleShiftKey:function(){["keyup","keydown"].forEach(function(e){window.addEventListener(e,function(e){document.onselectstart=function(){return!("Shift"==e.key&&1==e.shiftKey)}})})},emitActionEvent:function(e){var t={event_payload:cloneDeep_1(e.event_payload)};this.isSelectable&&(t.selectedItems=cloneDeep_1(this.selected_items)),this.$emit(e.event_name,t)},canShowColumn:function(e){return!(null!=e.visibility&&!e.visibility)}},computed:{rowCount:function(){return this.server_mode?this.totalRows:this.temp_filtered_results.length},selectedItemsCount:function(){return this.selected_items.length},filteredResultsCount:function(){return this.temp_filtered_results.length},uniqueId:function(){var e="";return this.hasUniqueId?(this.vbt_columns.some(function(t,n){if(has_1(t,"uniqueId")&&!0===t.uniqueId)return e=t.name,!0}),e):e="vbt_id"},hasUniqueId:function(){var e=!1;return this.vbt_columns.some(function(t,n){if(has_1(t,"uniqueId")&&!0===t.uniqueId)return e=!0,!0}),e},currentPageRowsLength:function(){return this.vbt_rows.length},filteredRowsLength:function(){return this.rowCount},originalRowsLength:function(){return this.server_mode?this.rowCount:this.rows.length},rowHighlightColor:function(){return this.highlight_row_hover?this.highlight_row_hover_color:""},headerColSpan:function(){var e=this,t=this.checkbox_rows?1:0;return t+=this.vbt_columns.filter(function(t){return e.canShowColumn(t)}).length},showToolsRow:function(){return 1==this.global_search.visibility||1==this.show_refresh_button||1==this.show_reset_button||this.actions.length>0},showFilterRow:function(){var e=!1;return this.columns.some(function(t,n){if(has_1(t,"filter"))return e=!0,!0}),e},showPaginationRow:function(){var e=!1;return 0!=this.card_mode||1!=this.pagination&&1!=this.pagination_info&&1!=this.selected_rows_info||(e=!0),e},currentPageSelectionCount:function(){return(this.server_mode&&!this.hasUniqueId?intersectionWith_1(this.vbt_rows,this.selected_items,isEqual_1):intersectionBy_1(this.vbt_rows,this.selected_items,this.uniqueId)).length},tableClasses:function(){var e=this,t="";return"string"==typeof this.classes.table?this.classes.table:("object"==typeof this.classes.table&&Object.entries(this.classes.table).forEach(function(n){var r=n[0],i=n[1];if("boolean"==typeof i&&i)t+=r;else if("function"==typeof i){var a=i(e.rows);"boolean"==typeof a&&a&&(t+=" ",t+=r)}}),t)},tableWrapperClasses:function(){return(this.classes.tableWrapper||""==this.classes.tableWrapper)&&"string"==typeof this.classes.tableWrapper?this.classes.tableWrapper:"table-responsive"},isSelectable:function(){return this.checkbox_rows||this.rows_selectable},updateGlobalSearch:function(){return debounce_1(this.updateGlobalSearchHandler,this.global_search.searchDebounceRate)}},watch:{"query.filters":{handler:function(e,t){this.server_mode||this.filter(!this.preservePageOnDataChange)},deep:!0},"query.sort":{handler:function(e,t){this.server_mode||this.sort()},deep:!0},"query.global_search":{handler:function(e,t){this.server_mode||this.filter(!this.preservePageOnDataChange)}},query:{handler:function(e,t){this.server_mode&&this.emitQueryParams()},deep:!0},per_page:{handler:function(e,t){if(this.server_mode)this.emitQueryParams();else{var n=1==this.page;this.preservePageOnDataChange||(this.page=1),n&&this.paginateFilter()}}},pagination:{handler:function(e,t){this.server_mode?this.emitQueryParams():this.paginateFilter()}},rows:{handler:function(e,t){if(this.vbt_rows=cloneDeep_1(this.rows),this.server_mode){if(this.preservePageOnDataChange){var n=Math.ceil(this.rowCount/this.per_page);this.page=0!=n?this.page<=n?this.page:n:1}}else{var r=this;this.original_rows=map_1(this.vbt_rows,function(e,t){var n={};return r.hasUniqueId||(n.vbt_id=t+1),extend({},e,n)}),this.filter(!this.preservePageOnDataChange,!this.isFirstTime)}this.isFirstTime=!1},deep:!0},customFilters:{handler:function(e,t){var n=this;this.server_mode||e.forEach(function(e){if(e.name){var t=n.query.filters.findIndex(function(t){return t.name===e.name});-1==t?n.query.filters.push(e):n.query.filters[t].text=e.text}})},deep:!0},columns:{handler:function(e,t){this.vbt_columns=cloneDeep_1(this.columns),this.vbt_columns=map_1(this.vbt_columns,function(e,t){var n={};return n.vbt_col_id=t+1,extend({},e,n)}),this.initFilterQueries()},deep:!0},config:{handler:function(e,t){this.initConfig()},deep:!0},vbt_rows:{handler:function(e,t){if(this.lastSelectedItemIndex=null,0!=this.selected_items.length){0==(this.server_mode&&!this.hasUniqueId?differenceWith_1(e,this.selected_items,isEqual_1):differenceBy_1(e,this.selected_items,this.uniqueId)).length?this.allRowsSelected=!0:this.allRowsSelected=!1}else this.allRowsSelected=!1},deep:!0},page:function(e,t){this.server_mode?this.emitQueryParams(e):this.paginateFilter()},"config.multi_column_sort":{handler:function(e,t){this.resetSort()}}}},__vue_script__$9=script$9,__vue_render__$9=function(){var e=this,t=e.$createElement,n=e._self._c||t;return n("div",{class:{card:e.card_mode}},[e.card_mode?n("div",{staticClass:"card-header"},[e._t("card-header",[[e._v("\n                "+e._s(e.card_title)+"\n            ")]])],2):e._e(),e._v(" "),n("div",{class:{"card-body":e.card_mode}},[n("div",{staticClass:"vbt-table-wrapper",class:e.tableWrapperClasses},[e.showLoader?n("div",{staticClass:"vbt-table-overlay"},[e._t("loader-overlay",[e._m(0),e._v(" "),n("span",{staticClass:"vbt-table-loader-text"},[e._v(e._s(e.loaderText))])])],2):e._e(),e._v(" "),n("table",{staticClass:"table",class:e.tableClasses},[n("thead",[e.showToolsRow?n("tr",{staticClass:"vbt-table-tools"},[n("th",{attrs:{colspan:e.headerColSpan}},[n("div",{staticClass:"row vbt-header-row no-gutters"},[n("div",{staticClass:"col-md-4"},[n("div",{staticClass:"row no-gutters"},[e.global_search.visibility?n("div",{staticClass:"col-md-6 input-group vbt-global-search"},[n("div",{staticClass:"form-group has-clear-right",class:e.global_search.class},[e.global_search.showClearButton?n("span",{staticClass:"form-control-feedback vbt-global-search-clear",on:{click:e.clearGlobalSearch}},[e._t("global-search-clear-icon",[e._v("\n                                                        ⓧ\n                                                    ")])],2):e._e(),e._v(" "),e.global_search.searchOnPressEnter?n("input",{ref:"global_search",staticClass:"form-control",attrs:{type:"text",placeholder:e.global_search.placeholder},on:{keyup:function(t){if(!("button"in t)&&e._k(t.keyCode,"enter",13,t.key,"Enter"))return null;e.updateGlobalSearchHandler(t.target.value)}}}):n("input",{ref:"global_search",staticClass:"form-control",attrs:{type:"text",placeholder:e.global_search.placeholder},on:{keyup:function(t){t.stopPropagation(),e.updateGlobalSearch(t.target.value)}}})])]):e._e(),e._v(" "),n("div",{staticClass:"col-md-6"},[n("div",{staticClass:"btn-group",attrs:{role:"group","aria-label":"Table Actions buttons"}},[e.show_refresh_button?n("button",{staticClass:"btn btn-secondary vbt-refresh-button",attrs:{type:"button"},on:{click:function(t){e.$emit("refresh-data")}}},[e._t("refresh-button-text",[e._v("\n                                                        Refresh\n                                                    ")])],2):e._e(),e._v(" "),e.show_reset_button?n("button",{staticClass:"btn btn-secondary vbt-reset-button",attrs:{type:"button"},on:{click:e.resetQuery}},[e._t("reset-button-text",[e._v("\n                                                        Reset Query\n                                                    ")])],2):e._e()])])])]),e._v(" "),n("div",{staticClass:"col-md-8"},[e._t("vbt-action-buttons",[n("div",{staticClass:"btn-group float-right",attrs:{role:"group","aria-label":"Basic example"}},e._l(e.actions,function(t,r,i){return n("button",{key:i,staticClass:"btn",class:e.getActionButtonClass(t),attrs:{type:"button"},on:{click:function(n){e.emitActionEvent(t)}}},[e._t(t.btn_text_slot_name,[n("span",{domProps:{innerHTML:e._s(t.btn_text)}})])],2)}),0)])],2)])])]):e._e(),e._v(" "),n("tr",[e.checkbox_rows?n("select-all-rows-check-box",{attrs:{"all-rows-selected":e.allRowsSelected,"current-page-selection-count":e.currentPageSelectionCount},on:{"select-all-row-checkbox":e.selectAllCheckbox}}):e._e(),e._v(" "),e._t("columns",[e._l(e.vbt_columns,function(t,r,i){return[e.canShowColumn(t)?n("th",e._g({key:i,staticClass:"vbt-column-header",class:e.columnClasses(t)},e.isSortableColumn(t)?{click:function(){return e.updateSortQuery(t)}}:{}),[e._t("column_"+e.getCellSlotName(t),[e._v("\n                                        "+e._s(t.label)+"\n                                    ")],{column:t}),e._v(" "),e.isSortableColumn(t)?[n("SortIcon",{attrs:{sort:e.query.sort,column:t}},[n("template",{slot:"vbt-sort-asc-icon"},[e._t("sort-asc-icon",[e._v("\n                                                            🠥\n                                                    ")])],2),e._v(" "),n("template",{slot:"vbt-sort-desc-icon"},[e._t("sort-desc-icon",[e._v("\n                                                            🠧\n                                                    ")])],2),e._v(" "),n("template",{slot:"vbt-no-sort-icon"},[e._t("no-sort-icon",[e._v("\n                                                            🠥🠧\n                                                    ")])],2)],2)]:e._e()],2):e._e()]})],{columns:e.vbt_columns})],2)]),e._v(" "),n("tbody",[e.showFilterRow?n("tr",{staticClass:"table-active"},[n("td",{directives:[{name:"show",rawName:"v-show",value:e.checkbox_rows,expression:"checkbox_rows"}]}),e._v(" "),e._l(e.vbt_columns,function(t,r,i){return[e.canShowColumn(t)?n("td",{key:i,attrs:{align:"center"}},[e.hasFilter(t)?["simple"==t.filter.type?n("Simple",{attrs:{column:t},on:{"update-filter":e.updateFilter,"clear-filter":e.clearFilter}},[n("template",{slot:"vbt-simple-filter-clear-icon"},[e._t("simple-filter-clear-icon",[e._v("\n                                                ⓧ\n                                            ")])],2)],2):e._e(),e._v(" "),"select"==t.filter.type?n("MultiSelect",{attrs:{options:t.filter.options,column:t},on:{"update-multi-select-filter":e.updateMultiSelectFilter,"clear-filter":e.clearFilter}}):e._e(),e._v(" "),"custom"==t.filter.type?[e._t(t.filter.slot_name,null,{column:t})]:e._e()]:e._e()],2):e._e()]})],2):e._e(),e._v(" "),e._l(e.vbt_rows,function(t,r){return n("row",{key:r,attrs:{row:t,columns:e.vbt_columns,"row-index":r,"checkbox-rows":e.checkbox_rows,"rows-selectable":e.rows_selectable,"selected-items":e.selected_items,"highlight-row-hover":e.highlight_row_hover,"highlight-row-hover-color":e.rowHighlightColor,"prop-row-classes":e.classes.row,"prop-cell-classes":e.classes.cell,"unique-id":e.uniqueId},on:{"add-row":e.handleAddRow,"remove-row":e.handleRemoveRow}},[e._l(e.columns,function(r){return n("template",{slot:"vbt-"+e.getCellSlotName(r)},[e._t(e.getCellSlotName(r),[e._v("\n                                    "+e._s(e.getValueFromRow(t,r.name))+"\n                            ")],{row:t,column:r,cell_value:e.getValueFromRow(t,r.name)})],2)})],2)}),e._v(" "),n("tr",{directives:[{name:"show",rawName:"v-show",value:0==e.vbt_rows,expression:"vbt_rows == 0"}]},[n("td",{attrs:{colspan:e.headerColSpan}},[e._t("empty-results",[e._v("\n                                No results found\n                            ")])],2)]),e._v(" "),e.showPaginationRow?n("tr",{staticClass:"footer-pagination-row"},[n("td",{attrs:{colspan:e.headerColSpan}},[n("div",{staticClass:"row vbt-pagination-row no-gutters"},[n("div",{staticClass:"col-md-8"},[e.pagination?n("div",[n("Pagination",{attrs:{page:e.page,per_page:e.per_page,per_page_options:e.per_page_options,total:e.rowCount,num_of_visibile_pagination_buttons:e.num_of_visibile_pagination_buttons},on:{"update:page":function(t){e.page=t},"update:per_page":function(t){e.per_page=t}}},[n("template",{slot:"vbt-paginataion-previous-button"},[e._t("paginataion-previous-button",[e._v("\n                                                    «\n                                                ")])],2),e._v(" "),n("template",{slot:"vbt-paginataion-next-button"},[e._t("paginataion-next-button",[e._v("\n                                                    »\n                                                ")])],2)],2)],1):e._e()]),e._v(" "),n("div",{staticClass:"col-md-4"},[n("div",{staticClass:"text-right justify-content-center"},[e.pagination_info?[e._t("pagination-info",[0!=e.currentPageRowsLength?[e._v("\n                                                    From 1 to "+e._s(e.currentPageRowsLength)+" of "+e._s(e.filteredRowsLength)+" entries\n                                                ")]:[e._v("\n                                                    No results found\n                                                ")],e._v(" "),[e._v("\n                                                    ("+e._s(e.originalRowsLength)+" total records)\n                                                ")]],{currentPageRowsLength:e.currentPageRowsLength,filteredRowsLength:e.filteredRowsLength,originalRowsLength:e.originalRowsLength})]:e._e(),e._v(" "),e.selected_rows_info&&e.pagination_info&&e.isSelectable?[e._t("pagination-selected-rows-separator",[e._v("\n                                                |\n                                            ")])]:e._e(),e._v(" "),e.selected_rows_info&&e.isSelectable?[e._t("selected-rows-info",[e._v("\n                                                "+e._s(e.selectedItemsCount)+" rows selected\n                                            ")],{selectedItemsCount:e.selectedItemsCount})]:e._e()],2)])])])]):e._e()],2)])])]),e._v(" "),e.card_mode?n("div",{staticClass:"card-footer"},[e._t("card-footer",[n("div",{staticClass:"row"},[n("div",{staticClass:"col-md-6"},[e.pagination?n("div",[n("Pagination",{attrs:{page:e.page,per_page:e.per_page,per_page_options:e.per_page_options,total:e.rowCount,num_of_visibile_pagination_buttons:e.num_of_visibile_pagination_buttons},on:{"update:page":function(t){e.page=t},"update:per_page":function(t){e.per_page=t}}},[n("template",{slot:"vbt-paginataion-previous-button"},[e._t("paginataion-previous-button",[e._v("\n                                    «\n                                ")])],2),e._v(" "),n("template",{slot:"vbt-paginataion-next-button"},[e._t("paginataion-next-button",[e._v("\n                                    »\n                                ")])],2)],2)],1):e._e()]),e._v(" "),n("div",{staticClass:"col-md-6"},[n("div",{staticClass:"text-right justify-content-center"},[e.pagination_info?[e._t("pagination-info",[0!=e.currentPageRowsLength?[e._v("\n                                    From 1 to "+e._s(e.currentPageRowsLength)+" of "+e._s(e.filteredRowsLength)+" entries\n                                ")]:[e._v("\n                                    No results found\n                                ")],e._v(" "),[e._v("\n                                    ("+e._s(e.originalRowsLength)+" total records)\n                                ")]],{currentPageRowsLength:e.currentPageRowsLength,filteredRowsLength:e.filteredRowsLength,originalRowsLength:e.originalRowsLength})]:e._e(),e._v(" "),e.pagination_info&&e.selected_rows_info?[e._t("pagination-selected-rows-separator",[e._v("\n                                |\n                            ")])]:e._e(),e._v(" "),e.selected_rows_info?[e._t("selected-rows-info",[e._v("\n                                "+e._s(e.selectedItemsCount)+" rows selected\n                            ")],{selectedItemsCount:e.selectedItemsCount})]:e._e()],2)])])])],2):e._e()])},__vue_staticRenderFns__$9=[function(){var e=this.$createElement,t=this._self._c||e;return t("div",{staticClass:"lds-ripple"},[t("div"),t("div")])}];__vue_render__$9._withStripped=!0;var __vue_inject_styles__$9=function(e){e&&e("data-v-46173776_0",{source:'\n.vbt-table-wrapper[data-v-46173776] {\n    position: relative;\n}\n\n/*\nLoader styles copied from here: https://loading.io/css/\n*/\n.lds-ripple[data-v-46173776] {\n    display: inline-block;\n    position: relative;\n    width: 64px;\n    height: 64px;\n}\n.lds-ripple div[data-v-46173776] {\n    position: absolute;\n    border: 4px solid #000000;\n    opacity: 1;\n    border-radius: 50%;\n    animation: lds-ripple-data-v-46173776 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;\n}\n.lds-ripple div[data-v-46173776]:nth-child(2) {\n    animation-delay: -0.5s;\n}\n@keyframes lds-ripple-data-v-46173776 {\n0% {\n        top: 28px;\n        left: 28px;\n        width: 0;\n        height: 0;\n        opacity: 1;\n}\n100% {\n        top: -1px;\n        left: -1px;\n        width: 58px;\n        height: 58px;\n        opacity: 0;\n}\n}\n.vbt-table-overlay[data-v-46173776] {\n    display: flex;\n    flex-direction: column;\n    justify-content: center;\n    align-items: center;\n    width: 100%;\n    height: 100%;\n    background: #ffffff;\n    position: absolute;\n    opacity: 0.7;\n    z-index: 7777;\n}\n.vbt-table-loader-wrapper[data-v-46173776] {\n    height: 100%;\n    width: 100%;\n    justify-content: center;\n}\n.vbt-table-loader-wrapper .progress[data-v-46173776]{\n    margin-left: 40%;\n    margin-right: 40%;\n}\n.vbt-select-all-checkbox[data-v-46173776] {\n    margin-bottom: 20px;\n}\n.vbt-sort-cursor[data-v-46173776] {\n    cursor: pointer;\n}\n.custom-control-label[data-v-46173776] {\n    vertical-align: top;\n}\n.vbt-column-header[data-v-46173776] {\n    -webkit-user-select: none;  /* Chrome all / Safari all */\n    -moz-user-select: none;     /* Firefox all */\n    -ms-user-select: none;      /* IE 10+ */\n    user-select: none;          /* Likely future */\n}\n.vbt-global-search-clear[data-v-46173776] {\n    cursor: pointer;\n}\ninput[type="search"][data-v-46173776] {\n-webkit-appearance: searchfield;\n}\ninput[type="search"][data-v-46173776]::-webkit-search-cancel-button {\n-webkit-appearance: searchfield-cancel-button;\n}\n\n/* Bootstrap 4 text input with clear icon on the right */\n.has-clear-right[data-v-46173776] {\n    position: relative;\n}\n.has-clear-right .form-control[data-v-46173776] {\n    padding-right: 2.375rem;\n}\n.has-clear-right .form-control-feedback[data-v-46173776] {\n    position: absolute;\n    top: 0;\n    right: 0;\n    z-index: 2;\n    display: block;\n    width: 2.375rem;\n    height: 2.375rem;\n    line-height: 2.375rem;\n    text-align: center;\n    font-weight: normal;\n}\n.has-clear-right .form-control-feedback[data-v-46173776]:hover {\n    color: red;\n}\n',map:{version:3,sources:["/home/ruby/repos/vue-bootstrap4-table/src/components/VueBootstrap4Table.vue"],names:[],mappings:";AAk7CA;IACA,mBAAA;CACA;;AAEA;;EAEA;AAEA;IACA,sBAAA;IACA,mBAAA;IACA,YAAA;IACA,aAAA;CACA;AACA;IACA,mBAAA;IACA,0BAAA;IACA,WAAA;IACA,mBAAA;IACA,+EAAA;CACA;AACA;IACA,uBAAA;CACA;AACA;AACA;QACA,UAAA;QACA,WAAA;QACA,SAAA;QACA,UAAA;QACA,WAAA;CACA;AACA;QACA,UAAA;QACA,WAAA;QACA,YAAA;QACA,aAAA;QACA,WAAA;CACA;CACA;AAEA;IACA,cAAA;IACA,uBAAA;IACA,wBAAA;IACA,oBAAA;IACA,YAAA;IACA,aAAA;IACA,oBAAA;IACA,mBAAA;IACA,aAAA;IACA,cAAA;CACA;AAEA;IACA,aAAA;IACA,YAAA;IACA,wBAAA;CACA;AAEA;IACA,iBAAA;IACA,kBAAA;CACA;AAEA;IACA,oBAAA;CACA;AAEA;IACA,gBAAA;CACA;AACA;IACA,oBAAA;CACA;AACA;IACA,0BAAA,EAAA,6BAAA;IACA,uBAAA,KAAA,iBAAA;IACA,sBAAA,MAAA,YAAA;IACA,kBAAA,UAAA,mBAAA;CACA;AACA;IACA,gBAAA;CACA;AACA;AACA,gCAAA;CACA;AAEA;AACA,8CAAA;CACA;;AAEA,yDAAA;AAEA;IACA,mBAAA;CACA;AAEA;IACA,wBAAA;CACA;AAEA;IACA,mBAAA;IACA,OAAA;IACA,SAAA;IACA,WAAA;IACA,eAAA;IACA,gBAAA;IACA,iBAAA;IACA,sBAAA;IACA,mBAAA;IACA,oBAAA;CACA;AAEA;IACA,WAAA;CACA",file:"VueBootstrap4Table.vue",sourcesContent:['<template>\n    \x3c!-- TODO configurable header title position --\x3e\n    <div :class="{card:card_mode}">\n        <div class="card-header" v-if="card_mode">\n            <slot name="card-header">\n                <template>\n                    {{card_title}}\n                </template>\n            </slot>\n        </div>\n        <div :class="{\'card-body\':card_mode}">\n            <div :class=\'tableWrapperClasses\' class="vbt-table-wrapper">\n                <div v-if="showLoader" class="vbt-table-overlay">\n                    <slot name="loader-overlay">\n                        <div class="lds-ripple"><div></div><div></div></div>\n                        <span class="vbt-table-loader-text">{{loaderText}}</span>\n                    </slot>\n                </div>\n                <table class="table" :class="tableClasses">\n                    <thead>\n                        <tr v-if="showToolsRow" class="vbt-table-tools">\n                            <th :colspan="headerColSpan">\n                                <div class="row vbt-header-row no-gutters">\n                                    <div class="col-md-4">\n                                        <div class="row no-gutters">\n                                            \x3c!-- global search text starts here --\x3e\n                                            <div class="col-md-6 input-group vbt-global-search" v-if="global_search.visibility">\n                                                  <div class="form-group has-clear-right" :class="global_search.class">\n                                                    <span v-if="global_search.showClearButton" class="form-control-feedback vbt-global-search-clear" @click="clearGlobalSearch">\n                                                        <slot name="global-search-clear-icon">\n                                                            &#x24E7;\n                                                        </slot>\n                                                    </span>\n                                                    <input v-if="global_search.searchOnPressEnter" ref="global_search" type="text" class="form-control" :placeholder="global_search.placeholder" @keyup.enter="updateGlobalSearchHandler($event.target.value)">\n                                                    <input v-else ref="global_search" type="text" class="form-control" :placeholder="global_search.placeholder" @keyup.stop="updateGlobalSearch($event.target.value)">\n                                                </div>\n                                            </div>\n                                            \x3c!-- global search text ends here --\x3e\n\n                                            \x3c!-- refresh & reset button starts here --\x3e\n                                            <div class="col-md-6">\n                                                <div class="btn-group" role="group" aria-label="Table Actions buttons">\n                                                    <button v-if="show_refresh_button" type="button" class="btn btn-secondary vbt-refresh-button" @click="$emit(\'refresh-data\')">\n                                                        <slot name="refresh-button-text">\n                                                            Refresh\n                                                        </slot>\n                                                    </button>\n                                                    <button type="button" v-if="show_reset_button" class="btn btn-secondary vbt-reset-button" @click="resetQuery">\n                                                        <slot name="reset-button-text">\n                                                            Reset Query\n                                                        </slot>\n                                                    </button>\n                                                </div>\n                                            </div>\n                                            \x3c!-- refresh & reset button ends here --\x3e\n                                        </div>\n                                    </div>\n\n                                    \x3c!-- action buttons starts here --\x3e\n                                    <div class="col-md-8">\n                                        <slot name="vbt-action-buttons">\n                                            <div class="btn-group float-right" role="group" aria-label="Basic example">\n                                                <button v-for="(action, key, index) in actions"\n                                                        :key="index" type="button" class="btn"\n                                                        :class="getActionButtonClass(action)"\n                                                        @click="emitActionEvent(action)">\n                                                        <slot :name="action.btn_text_slot_name">\n                                                            <span v-html="action.btn_text"></span>\n                                                        </slot>\n                                                </button>\n                                            </div>\n                                        </slot>\n                                    </div>\n                                    \x3c!-- action buttons button ends here --\x3e\n\n                                </div>\n                                \x3c!-- <a href="" v-if="allRowsSelected">sadfsdf</a> --\x3e\n                            </th>\n                        </tr>\n\n                        <tr>\n                            <select-all-rows-check-box v-if="checkbox_rows"\n                                                        :all-rows-selected="allRowsSelected"\n                                                        :current-page-selection-count="currentPageSelectionCount"\n                                                        @select-all-row-checkbox="selectAllCheckbox"/>\n\n                            <slot name="columns" :columns="vbt_columns">\n                                <template v-for="(column, key, index) in vbt_columns">\n                                    <th v-if="canShowColumn(column)" :key="index" v-on="isSortableColumn(column) ? { click: () => updateSortQuery(column) } : {}" class="vbt-column-header" :class="columnClasses(column)">\n                                        <slot :name="\'column_\' + getCellSlotName(column)" :column="column">\n                                            {{column.label}}\n                                        </slot>\n\n                                        <template v-if=\'isSortableColumn(column)\'>\n                                            <SortIcon :sort="query.sort" :column="column">\n                                                    <template slot="vbt-sort-asc-icon">\n                                                        <slot name="sort-asc-icon">\n                                                                &#x1F825;\n                                                        </slot>\n                                                    </template>\n                                                    <template slot="vbt-sort-desc-icon">\n                                                        <slot name="sort-desc-icon">\n                                                                &#x1F827;\n                                                        </slot>\n                                                    </template>\n                                                    <template slot="vbt-no-sort-icon">\n                                                        <slot name="no-sort-icon">\n                                                                &#x1F825;&#x1F827;\n                                                        </slot>\n                                                    </template>\n                                            </SortIcon>\n                                        </template>\n                                    </th>\n                                </template>\n                            </slot>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        \x3c!-- filter row starts here --\x3e\n                        <tr class="table-active" v-if="showFilterRow">\n                            <td v-show="checkbox_rows"></td>\n                            <template v-for="(column, key, index) in vbt_columns">\n                                <td v-if="canShowColumn(column)" :key="index" align="center">\n                                    <template v-if="hasFilter(column)">\n                                        <Simple v-if="column.filter.type == \'simple\'" :column="column" @update-filter="updateFilter" @clear-filter="clearFilter">\n                                            <template slot="vbt-simple-filter-clear-icon">\n                                                <slot name="simple-filter-clear-icon">\n                                                    &#x24E7;\n                                                </slot>\n                                            </template>\n                                        </Simple>\n                                        <MultiSelect v-if="column.filter.type == \'select\'" :options="column.filter.options" :column="column" @update-multi-select-filter="updateMultiSelectFilter" @clear-filter="clearFilter"></MultiSelect>\n                                        <template v-if="column.filter.type == \'custom\'">\n                                            <slot :name="column.filter.slot_name" :column="column">\n\n                                            </slot>\n                                        </template>\n                                    </template>\n                                </td>\n                            </template>\n                        </tr>\n                        \x3c!-- filter row ends here --\x3e\n\n                        \x3c!-- data rows stars here --\x3e\n                        <row v-for="(row, index) in vbt_rows" :key="index"\n                                                                :row="row"\n                                                                :columns="vbt_columns"\n                                                                :row-index="index"\n                                                                :checkbox-rows="checkbox_rows"\n                                                                :rows-selectable="rows_selectable"\n                                                                :selected-items="selected_items"\n                                                                :highlight-row-hover="highlight_row_hover"\n                                                                :highlight-row-hover-color="rowHighlightColor"\n                                                                :prop-row-classes="classes.row"\n                                                                :prop-cell-classes="classes.cell"\n                                                                :unique-id="uniqueId"\n                                                                @add-row="handleAddRow"\n                                                                @remove-row="handleRemoveRow">\n                            <template v-for="(column) in columns" :slot="\'vbt-\'+getCellSlotName(column)">\n                                <slot :name="getCellSlotName(column)" :row="row" :column="column" :cell_value="getValueFromRow(row,column.name)">\n                                        {{getValueFromRow(row,column.name)}}\n                                </slot>\n                            </template>\n                        </row>\n                        \x3c!-- empty row starts here --\x3e\n                        <tr v-show="vbt_rows == 0">\n                            <td :colspan="headerColSpan">\n                                <slot name="empty-results">\n                                    No results found\n                                </slot>\n                            </td>\n                        </tr>\n                        \x3c!-- empty row ends here --\x3e\n\n                        \x3c!-- data rows ends here --\x3e\n\n                        \x3c!-- Pagination row starts here --\x3e\n                        <tr v-if="showPaginationRow" class="footer-pagination-row">\n                            <td :colspan="headerColSpan">\n                                <div class="row vbt-pagination-row no-gutters">\n                                    \x3c!-- pagination starts here --\x3e\n                                    <div class="col-md-8">\n                                        <div v-if="pagination">\n                                            <Pagination :page.sync="page" :per_page.sync="per_page" :per_page_options="per_page_options" :total="rowCount" :num_of_visibile_pagination_buttons="num_of_visibile_pagination_buttons">\n                                                <template slot="vbt-paginataion-previous-button">\n                                                    <slot name="paginataion-previous-button">\n                                                        &laquo;\n                                                    </slot>\n                                                </template>\n                                                <template slot="vbt-paginataion-next-button">\n                                                    <slot name="paginataion-next-button">\n                                                        &raquo;\n                                                    </slot>\n                                                </template>\n                                            </Pagination>\n                                        </div>\n                                    </div>\n                                    \x3c!-- pagination ends here --\x3e\n\n                                    \x3c!-- pagination info start here --\x3e\n                                    <div class="col-md-4">\n                                        <div class="text-right justify-content-center">\n                                            <template v-if="pagination_info">\n                                                <slot name="pagination-info" :currentPageRowsLength="currentPageRowsLength" :filteredRowsLength="filteredRowsLength" :originalRowsLength="originalRowsLength">\n                                                    <template v-if="currentPageRowsLength != 0">\n                                                        From 1 to {{currentPageRowsLength}} of {{filteredRowsLength}} entries\n                                                    </template>\n                                                    <template v-else>\n                                                        No results found\n                                                    </template>\n                                                    <template>\n                                                        ({{originalRowsLength}} total records)\n                                                    </template>\n                                                </slot>\n                                            </template>\n                                            <template v-if="selected_rows_info && pagination_info && isSelectable">\n                                                <slot name="pagination-selected-rows-separator">\n                                                    |\n                                                </slot>\n                                            </template>\n                                            <template v-if="selected_rows_info && isSelectable">\n                                                <slot name="selected-rows-info" :selectedItemsCount="selectedItemsCount">\n                                                    {{selectedItemsCount}} rows selected\n                                                </slot>\n                                            </template>\n                                        </div>\n                                    </div>\n                                    \x3c!-- pagination info ends here --\x3e\n                                </div>\n                            </td>\n                        </tr>\n                        \x3c!-- Pagination ends starts here --\x3e\n\n                    </tbody>\n                </table>\n            </div>\n        </div>\n        <div class="card-footer" v-if="card_mode">\n            <slot name="card-footer">\n                <div class="row">\n                    \x3c!-- pagination starts here --\x3e\n                    <div class="col-md-6">\n                        <div v-if="pagination">\n                            <Pagination :page.sync="page" :per_page.sync="per_page" :per_page_options="per_page_options" :total="rowCount" :num_of_visibile_pagination_buttons="num_of_visibile_pagination_buttons">\n                                <template slot="vbt-paginataion-previous-button">\n                                    <slot name="paginataion-previous-button">\n                                        &laquo;\n                                    </slot>\n                                </template>\n                                <template slot="vbt-paginataion-next-button">\n                                    <slot name="paginataion-next-button">\n                                        &raquo;\n                                    </slot>\n                                </template>\n                            </Pagination>\n                        </div>\n                    </div>\n                    \x3c!-- pagination ends here --\x3e\n\n                    \x3c!-- pagination info start here --\x3e\n                    <div class="col-md-6">\n                        <div class="text-right justify-content-center">\n                            <template v-if="pagination_info">\n                                <slot name="pagination-info" :currentPageRowsLength="currentPageRowsLength" :filteredRowsLength="filteredRowsLength" :originalRowsLength="originalRowsLength">\n                                    <template v-if="currentPageRowsLength != 0">\n                                        From 1 to {{currentPageRowsLength}} of {{filteredRowsLength}} entries\n                                    </template>\n                                    <template v-else>\n                                        No results found\n                                    </template>\n                                    <template>\n                                        ({{originalRowsLength}} total records)\n                                    </template>\n                                </slot>\n                            </template>\n                            <template v-if="pagination_info && selected_rows_info">\n                                <slot name="pagination-selected-rows-separator">\n                                    |\n                                </slot>\n                            </template>\n                            <template v-if="selected_rows_info">\n                                <slot name="selected-rows-info" :selectedItemsCount="selectedItemsCount">\n                                    {{selectedItemsCount}} rows selected\n                                </slot>\n                            </template>\n                        </div>\n                    </div>\n                    \x3c!-- pagination info ends here --\x3e\n                </div>\n            </slot>\n        </div>\n    </div>\n</template>\n\n<script>\nimport findIndex from "lodash/findIndex";\nimport range from "lodash/range";\nimport filter from "lodash/filter";\nimport includes from "lodash/includes";\nimport map from "lodash/map";\nimport join from "lodash/join";\nimport has from "lodash/has";\nimport extend from "lodash/extend";\nimport isEmpty from "lodash/isEmpty";\nimport isEqual from "lodash/isEqual";\nimport debounce from "lodash/debounce";\nimport cloneDeep from "lodash/cloneDeep";\nimport differenceWith from "lodash/differenceWith";\nimport differenceBy from "lodash/differenceBy";\nimport intersectionWith from "lodash/intersectionWith";\nimport intersectionBy from "lodash/intersectionBy";\nimport orderBy from "lodash/orderBy";\nimport get from "lodash/get";\nimport omit from "lodash/omit";\nimport clone from "lodash/clone";\n\nimport Row from "./Row.vue";\nimport CheckBox from "./CheckBox.vue";\nimport SelectAllRowsCheckBox from "./SelectAllRowsCheckBox.vue";\nimport SortIcon from "./SortIcon.vue";\nimport Pagination from "./Pagination.vue";\nimport Simple from "./Filters/Simple.vue";\nimport MultiSelect from "./Filters/MultiSelect.vue";\n\nimport {\n    EventBus\n} from \'../event-bus.js\';\n\nexport default {\n    name: "VueBootstrap4Table",\n    props: {\n        rows: {\n            type: Array,\n            required: true\n        },\n        columns: {\n            type: Array,\n            required: true\n        },\n        totalRows: {\n            type: Number,\n            default: 0\n        },\n        showLoader: {\n            type: Boolean,\n            default: false\n        },\n        config: {\n            type: Object,\n            default: function () {\n                return {};\n            }\n        },\n        classes: {\n            type: Object,\n            default: function () {\n                return {};\n            }\n        },\n        actions: {\n            type: Array,\n            default: function () {\n                return [];\n            }\n        },\n        customFilters: {\n            type: Array,\n            default: function () {\n                return [];\n            }\n        },\n    },\n    data: function () {\n        return {\n            vbt_rows: [],\n            vbt_columns: [],\n            query: {\n                sort: [],\n                filters: [],\n                global_search: ""\n            },\n            page: 1,\n            per_page: 10,\n            original_rows: [],\n            num_of_visibile_pagination_buttons: 5,\n            temp_filtered_results: [],\n            pagination: true,\n            pagination_info: true,\n            checkbox_rows: false,\n            selected_items: [],\n            highlight_row_hover: true,\n            highlight_row_hover_color: "#d6d6d6",\n            rows_selectable: false,\n            allRowsSelected: false,\n            multi_column_sort:false,\n            loaderText: "Loading...",\n            card_title: "",\n            global_search: {\n                placeholder: "Enter search text",\n                class: "",\n                visibility: true,\n                case_sensitive: false,\n                showClearButton: true,\n                searchOnPressEnter: false,\n                searchDebounceRate: 60,\n                init: {\n                    value: ""\n                }\n            },\n            per_page_options : [5,10,15],\n            show_refresh_button: true,\n            show_reset_button: true,\n            server_mode: false,\n            total_rows: 0,\n            card_mode: true,\n            selected_rows_info: false,\n            lastSelectedItemIndex: null,\n            isFirstTime: true,\n            isResponsive: true,\n            preservePageOnDataChange: false,\n            canEmitQueries : false,\n        };\n    },\n    mounted() {\n        this.vbt_rows = cloneDeep(this.rows);\n        this.vbt_columns = cloneDeep(this.columns);\n        let self = this;\n        // check if user mentioned unique id for a column, if not set unique id for all items\n        this.original_rows = map(this.vbt_rows, function (element, index) {\n            let extra = {};\n            if (!self.hasUniqueId) {\n                extra.vbt_id = index + 1;\n            }\n            return extend({}, element, extra);\n        });\n\n        this.vbt_columns = map(this.vbt_columns, function (element, index) {\n            let extra = {};\n            extra.vbt_col_id = index + 1;\n            return extend({}, element, extra);\n        });\n\n        this.initConfig();\n        this.initialSort();\n        this.initFilterQueries();\n\n        if (this.global_search.visibility) {\n            this.$nextTick(() => {\n                this.initGlobalSearch()\n            });\n        };\n\n        this.$nextTick(() => {\n            if (!this.server_mode) {\n                this.filter(false,true);\n            } else {\n                this.canEmitQueries = true;\n                this.emitQueryParams();\n            }\n        });\n\n        this.handleShiftKey();\n\n    },\n    components: {\n        Row,\n        CheckBox,\n        SelectAllRowsCheckBox,\n        Simple,\n        MultiSelect,\n        SortIcon,\n        Pagination,\n    },\n    methods: {\n        initConfig() {\n\n            if (isEmpty(this.config)) {\n                return;\n            }\n\n            this.pagination = (has(this.config, \'pagination\')) ? this.config.pagination : true;\n\n            this.num_of_visibile_pagination_buttons = (has(this.config, \'num_of_visibile_pagination_buttons\')) ? this.config.num_of_visibile_pagination_buttons : 7;\n\n            this.per_page_options = (has(this.config, \'per_page_options\')) ? this.config.per_page_options : [5,10,15];\n\n            this.per_page = (has(this.config, \'per_page\')) ? this.config.per_page : 10;\n\n            this.page = (has(this.config, \'page\')) ? this.config.page : 1;\n\n            this.checkbox_rows = (has(this.config, \'checkbox_rows\')) ? this.config.checkbox_rows : false;\n\n            this.highlight_row_hover = (has(this.config, \'highlight_row_hover\')) ? this.config.highlight_row_hover : true;\n\n            this.highlight_row_hover_color =  (has(this.config, \'highlight_row_hover_color\')) ? this.config.highlight_row_hover_color : "#d6d6d6";\n\n            this.rows_selectable = (has(this.config, \'rows_selectable\')) ? this.config.rows_selectable : false;\n\n            this.multi_column_sort = (has(this.config, \'multi_column_sort\')) ? (this.config.multi_column_sort) : false;\n\n            this.pagination_info = (has(this.config, \'pagination_info\')) ? this.config.pagination_info : true;\n\n            this.card_title = (has(this.config, \'card_title\')) ? this.config.card_title : "";\n\n            if (has(this.config, \'global_search\')) {\n                this.global_search.placeholder = (has(this.config.global_search, \'placeholder\')) ? this.config.global_search.placeholder : "Enter search text";\n                this.global_search.visibility = (has(this.config.global_search, \'visibility\')) ? this.config.global_search.visibility : true;\n                this.global_search.case_sensitive = (has(this.config.global_search, \'case_sensitive\')) ? this.config.global_search.case_sensitive : false;\n                this.global_search.showClearButton = (has(this.config.global_search, \'showClearButton\')) ? this.config.global_search.showClearButton : true;\n                this.global_search.searchOnPressEnter = (has(this.config.global_search, \'searchOnPressEnter\')) ? this.config.global_search.searchOnPressEnter : false;\n                this.global_search.searchDebounceRate = (has(this.config.global_search, \'searchDebounceRate\')) ? this.config.global_search.searchDebounceRate : 60;\n                this.global_search.class = (has(this.config.global_search, \'class\')) ? this.config.global_search.class : "";\n                this.global_search.init.value = (has(this.config.global_search, \'init.value\')) ? this.config.global_search.init.value: "";\n            }\n\n            this.show_refresh_button = (has(this.config, \'show_refresh_button\')) ? (this.config.show_refresh_button) : true;\n\n            this.show_reset_button = (has(this.config, \'show_reset_button\')) ? (this.config.show_reset_button) : true;\n\n            this.server_mode = (has(this.config, \'server_mode\')) ? (this.config.server_mode) : false;\n\n            this.card_mode = (has(this.config, \'card_mode\')) ? (this.config.card_mode) : true;\n\n            this.selected_rows_info = (has(this.config, \'card_mode\')) ? (this.config.selected_rows_info) : false;\n\n            this.preservePageOnDataChange = (has(this.config, \'preservePageOnDataChange\')) ? (this.config.preservePageOnDataChange) : false;\n\n            this.loaderText = (has(this.config, \'loaderText\')) ? (this.config.loaderText) : this.loaderText;\n\n        },\n\n        initialSort() {\n            // TODO optimze this with removing this filter\n            let initial_sort_columns =  filter(this.vbt_columns, column => (has(column,\'initial_sort\') && column.initial_sort == true));\n\n            initial_sort_columns.some(initial_sort_column => {\n\n                let result = findIndex(this.query.sort, { \'vbt_col_id\': initial_sort_column.vbt_col_id });\n\n                if(result == -1) {\n                    // initial sort order validation starts here\n                    let initial_sort_order = "asc";\n                    if (has(initial_sort_column,"initial_sort_order")) {\n                        if (includes(["asc","desc"], initial_sort_column.initial_sort_order)) {\n                            initial_sort_order = initial_sort_column.initial_sort_order;\n                        } else {\n                            console.log("invalid initial_sort_order, so setting it to default");\n                        }\n                    }\n                    // initial sort order validation ends here\n                    this.query.sort.push({\n                        vbt_col_id: initial_sort_column.vbt_col_id,\n                        name: initial_sort_column.name,\n                        order: initial_sort_order,\n                        caseSensitive: this.isSortCaseSensitive(initial_sort_column)\n                    });\n\n                }\n                // else {\n                //     this.query.sort[result].order = initial_sort_column.initial_sort_order;\n                // }\n\n                // if multicolum sort sort is false, then consider only first initial sort column\n                if (!this.multi_column_sort) {\n                    return true;\n                }\n            });\n        },\n\n        initGlobalSearch() {\n            this.$refs.global_search.value = this.global_search.init.value;\n            this.query.global_search = this.global_search.init.value;\n        },\n\n        hasFilter(column) {\n            return has(column, "filter.type");\n        },\n\n        clearFilter(column) {\n            let filter_index = this.getFilterIndex(column);\n            if (filter_index !== -1) {\n                this.query.filters.splice(filter_index, 1);\n            }\n        },\n\n        getFilterIndex(column) {\n            return findIndex(this.query.filters, {\n                name: column.name\n            });\n        },\n\n        initFilterQueries() {\n            this.vbt_columns.forEach(vbt_column => {\n\n\n                if (!has(vbt_column,\'filter\')) return;\n\n                if (vbt_column.filter.type == "simple") {\n                    if (!has(vbt_column,\'filter.init.value\')) return;\n\n                    this.updateFilter({\n                        "value" : vbt_column.filter.init.value,\n                        "column" : vbt_column\n                    });\n                } else if (vbt_column.filter.type == "select") {\n\n                    if (!has(vbt_column,\'filter.init.value\')) return;\n\n                    let initialValues = [];\n                    if (vbt_column.filter.mode == "multi") {\n                        if (Array.isArray(vbt_column.filter.init.value)) {\n                            initialValues = vbt_column.filter.init.value;\n                        } else {\n                            console.log("Initial value for \'multi\' mode should be an array");\n                        }\n                    } else if (vbt_column.filter.mode == "single") {\n                        if (Number.isInteger(vbt_column.filter.init.value) && vbt_column.filter.init.value > -1) {\n                            initialValues = [vbt_column.filter.init.value];\n                        } else {\n                            console.log("Initial value for \'single\' mode should be a single number and greater than -1");\n                        }\n                    }\n\n                    let selected_options = vbt_column.filter.options.filter((_,index) => includes(initialValues, index)).map(filtered_option => filtered_option.value);\n\n                    this.updateMultiSelectFilter({\n                        "selected_options" : selected_options,\n                        "column" : vbt_column\n                    });\n                }\n            });\n        },\n\n        isSortCaseSensitive(column) {\n            return (column.sortCaseSensitive != undefined) ? column.sortCaseSensitive : true;\n        },\n\n        updateSortQuery(column) {\n\n            let result = findIndex(this.query.sort, { \'vbt_col_id\': column.vbt_col_id });\n\n            if(result == -1) {\n\n                if (!this.multi_column_sort) {\n                    this.query.sort = [];\n                }\n                this.query.sort.push({\n                    vbt_col_id: column.vbt_col_id,\n                    name: column.name,\n                    order: "asc",\n                    caseSensitive: this.isSortCaseSensitive(column)\n                });\n\n            } else {\n                this.query.sort[result].order = this.query.sort[result].order == "asc" ? "desc" : "asc";\n            }\n        },\n        isShiftSelection(shiftKey,rowIndex){\n            return (shiftKey == true) && (this.lastSelectedItemIndex != null) && (this.lastSelectedItemIndex != rowIndex);\n        },\n        handleAddRow(payload) {\n            let row = this.vbt_rows[payload.rowIndex];\n            if (this.isShiftSelection(payload.shiftKey,payload.rowIndex)) {\n                let rows = this.getShiftSelectionRows(payload.rowIndex);\n                rows.forEach((_row) => {this.addSelectedItem(_row)});\n            } else {\n                this.addSelectedItem(row);\n            }\n\n            this.$emit(\'on-select-row\', {"selected_items":cloneDeep(this.selected_items) ,"selected_item":row});\n\n            let difference = [];\n\n            if (this.server_mode && !this.hasUniqueId) {\n                difference = differenceWith(this.vbt_rows, this.selected_items, isEqual);\n            } else {\n                difference = differenceBy(this.vbt_rows, this.selected_items, this.uniqueId);\n            }\n\n            if (difference.length == 0) {\n                this.allRowsSelected = true;\n                // EventBus.$emit(\'select-select-all-items-checkbox\', "from main");\n            } else {\n                this.allRowsSelected = false;\n                // EventBus.$emit(\'unselect-select-all-items-checkbox\', "from main");\n            }\n\n            this.lastSelectedItemIndex = payload.rowIndex;\n        },\n\n        getActionButtonClass(action){\n            return has(action,\'class\') ? action.class : " btn-secondary";\n        },\n\n        handleRemoveRow(payload) {\n            let row = this.vbt_rows[payload.rowIndex];\n            if (this.isShiftSelection(payload.shiftKey,payload.rowIndex)) {\n                let rows = this.getShiftSelectionRows(payload.rowIndex);\n                rows.forEach((_row) => {this.removeSelectedItem(_row)});\n            } else {\n                this.removeSelectedItem(row);\n            }\n            this.$emit(\'on-unselect-row\', {"selected_items":cloneDeep(this.selected_items),"unselected_item":row});\n            // EventBus.$emit(\'unselect-select-all-items-checkbox\');\n            this.allRowsSelected = false;\n            this.lastSelectedItemIndex = payload.rowIndex;\n        },\n        addSelectedItem(item) {\n\n            let index = -1;\n            if (this.server_mode && !this.hasUniqueId) {\n                index = findIndex(this.selected_items, (selected_item) => {return isEqual(selected_item, item)});\n            } else {\n                index = findIndex(this.selected_items, (selected_item) => {return selected_item[this.uniqueId] == item[this.uniqueId]});\n            }\n\n            if (index == -1) {\n                this.selected_items.push(item);\n            }\n        },\n        selectAllItems() {\n\n            let difference = [];\n\n            if (this.server_mode && !this.hasUniqueId) {\n                difference = differenceWith(this.vbt_rows, this.selected_items, isEqual);\n            } else {\n                difference = differenceBy(this.vbt_rows, this.selected_items, this.uniqueId);\n            }\n\n            this.selected_items.push(...difference);\n\n            this.$emit(\'on-all-select-rows\', {"selected_items":cloneDeep(this.selected_items) });\n\n        },\n        unSelectAllItems() {\n\n            let difference = [];\n\n            if (this.server_mode && !this.hasUniqueId) {\n                let result = intersectionWith(this.vbt_rows, this.selected_items, isEqual);\n                difference = differenceWith(this.selected_items, result, isEqual);\n            } else {\n                let result = intersectionBy(this.vbt_rows, this.selected_items, this.uniqueId);\n                difference = differenceBy(this.selected_items, result, this.uniqueId);\n            }\n\n            this.selected_items = difference;\n\n            this.$emit(\'on-all-unselect-rows\', {"selected_items":cloneDeep(this.selected_items)});\n\n        },\n        removeSelectedItem(item) {\n            // TODO try with findbyId function\n            this.selected_items.some((selected_item,index) => {\n                if (isEqual(item, selected_item)) {\n                    this.selected_items.splice(index, 1);\n                    return true;\n                }\n            });\n        },\n        getShiftSelectionRows(rowIndex) {\n            let start = 0;\n            let end = 0;\n            if (this.lastSelectedItemIndex < rowIndex) {\n                start = this.lastSelectedItemIndex;\n                end = rowIndex + 1;\n            } else if (this.lastSelectedItemIndex > rowIndex) {\n                start = rowIndex;\n                end = this.lastSelectedItemIndex + 1;\n            }\n            return this.vbt_rows.slice(start,end);\n        },\n        updateFilter(payload) {\n            let value = (typeof payload.value == "number") ? payload.value.toString() : payload.value;\n            let column = payload.column;\n            let filter_index = findIndex(this.query.filters, {\n                name: column.name\n            });\n            if (filter_index == -1) {\n                if (value !== "") {\n                    this.query.filters.push({\n                        type: column.filter.type,\n                        name: column.name,\n                        text: value.trim(),\n                        config: column.filter\n                    });\n                }\n            } else {\n                if (value === "") {\n                    this.query.filters.splice(filter_index, 1);\n                } else {\n                    this.query.filters[filter_index].text = value.trim();\n                }\n            }\n        },\n        updateMultiSelectFilter(payload) {\n\n            let selected_options = payload.selected_options;\n            let column = payload.column;\n\n\n            let filter_index = findIndex(this.query.filters, {\n                name: column.name\n            });\n\n            if (filter_index == -1) {\n                if (selected_options.length === 0) {\n                    return;\n                }\n                this.query.filters.push({\n                    type: column.filter.type,\n                    mode: column.filter.mode,\n                    name: column.name,\n                    selected_options: selected_options,\n                    config: column.filter\n                });\n            } else {\n                if (selected_options.length === 0) {\n                    this.query.filters.splice(filter_index, 1);\n                } else {\n                    this.query.filters[filter_index].selected_options = selected_options;\n                }\n            }\n        },\n\n        sort() {\n\n            if(this.query.sort.length != 0) {\n                let orders = this.query.sort.map(sortConfig => sortConfig.order);\n\n                this.temp_filtered_results = orderBy(this.temp_filtered_results,\n                    this.query.sort.map(sortConfig => {\n                        return row => {\n                            let value = get(row,sortConfig.name);\n                            if (sortConfig.caseSensitive) return value != null ? value : \'\';\n                            return value != null ? value.toString().toLowerCase() : \'\';\n                        }\n                    }),\n                    orders\n                );\n            };\n\n            this.paginateFilter();\n        },\n\n        filter(resetPage = true, isInit = false) {\n            let res = filter(this.original_rows, (row) => {\n                let flag = true;\n                this.query.filters.some((filter, key) => {\n                    if (filter.type === "simple") {\n                        if (this.simpleFilter(get(row, filter.name), filter.text,filter.config)) {\n                            // continue to next filter\n                            flag = true;\n                        } else {\n                            // stop here and break loop since one filter has failed\n                            flag = false;\n                            return true;\n                        }\n                    } else if (filter.type === "select") {\n                        if (this.multiSelectFilter(get(row, filter.name), filter.selected_options,filter.config)) {\n                            flag = true;\n                        } else {\n                            flag = false;\n                            return true;\n                        }\n                    } else if (filter.type === "custom") {\n                        let index = findIndex(this.vbt_columns,{name:filter.name});\n                        if (index > -1) {\n                            let column = this.vbt_columns[index];\n                            if (column.filter.validator) {\n                                let result = column.filter.validator(get(row, filter.name),filter.text);\n                                if (result == true || result == undefined) {\n                                    flag = true;\n                                } else {\n                                    flag = false;\n                                    return true;\n                                }\n                            } else {\n                                flag = true;\n                            }\n                        } else {\n                            flag = true;\n                        }\n                    }\n                });\n                return flag;\n            });\n\n            this.temp_filtered_results = res;\n\n            // Do global search only if global search text is not empty and\n            // filtered results is also not empty\n            if (this.query.global_search !== "" && this.rowCount != 0 ) {\n                this.temp_filtered_results = this.globalSearch(this.temp_filtered_results);\n            }\n\n            this.sort();\n            if (resetPage || this.rowCount == 0) {\n                this.page = 1;\n            } else if (!isInit) {\n                let newTotalPage = Math.ceil(this.rowCount/this.per_page);\n                this.page = (this.page <= newTotalPage) ? this.page : newTotalPage;\n            }\n        },\n\n        globalSearch(temp_filtered_results) {\n            let global_search_results = filter(temp_filtered_results, (row) =>{\n\n                let flag = false;\n\n                this.vbt_columns.some((vbt_column, key) => {\n                    let value = get(row, vbt_column.name);\n                    let global_search_text = this.query.global_search;\n\n                    if (value == null || typeof value === "undefined") {\n                        value =  "";\n                    }\n\n                    if (typeof value !== "string") {\n                        value = value.toString();\n                    }\n\n                    if (typeof global_search_text !== "string") {\n                        global_search_text = global_search_text.toString();\n                    }\n\n                    if (!this.global_search.case_sensitive) {\n                        value = value.toLowerCase();\n                        global_search_text = global_search_text.toLowerCase();\n                    }\n\n                    if (value.indexOf(global_search_text) > -1) {\n                        flag = true;\n                        return;\n                    }\n\n                });\n\n                return flag;\n            });\n\n            return global_search_results;\n        },\n\n        simpleFilter(value, filter_text,config) {\n\n            if (value == null || typeof value === "undefined") {\n                value =  "";\n            }\n\n            if (typeof value !== "string") {\n                value = value.toString();\n            }\n\n            if (typeof filter_text !== "string") {\n                value = filter_text.toString();\n            }\n\n            let is_case_sensitive = (has(config,\'case_sensitive\')) ? config.case_sensitive : false;\n\n            if (!is_case_sensitive) {\n                value = value.toLowerCase();\n                filter_text = filter_text.toLowerCase();\n            }\n\n            return value.indexOf(filter_text) > -1;\n        },\n        multiSelectFilter(value, selected_options,config) {\n\n            if (value == null || typeof value === "undefined") {\n                value =  "";\n            }\n\n            if (typeof value !== "string") {\n                value = value.toString().toLowerCase();\n            } else {\n                value = value.toLowerCase();\n            }\n\n            selected_options = map(selected_options, (option) => {\n                                    return (typeof option !== "string") ? option.toString().toLowerCase() : option.toLowerCase();\n                                });\n            return includes(selected_options, value);\n            // let is_case_sensitive = (has(config,\'case_sensitive\')) ? config.case_sensitive : false;\n\n            // if (!is_case_sensitive) {\n            //     value = value.toLowerCase();\n            //     filter_text = filter_text.toLowerCase();\n            // }\n\n            // return value.indexOf(filter_text) > -1;\n        },\n\n        paginateFilter() {\n            if (this.pagination) {\n                let start = (this.page - 1) * this.per_page;\n                let end = start + this.per_page;\n                this.vbt_rows = this.temp_filtered_results.slice(start, end);\n            } else {\n                this.vbt_rows = cloneDeep(this.temp_filtered_results);\n            }\n        },\n\n        selectAllCheckbox() {\n            if (this.allRowsSelected || this.currentPageSelectionCount > 0) {\n                this.unSelectAllItems();\n                this.allRowsSelected = false;\n            } else {\n                this.selectAllItems();\n                this.allRowsSelected = true;\n            }\n        },\n\n        isSortableColumn(column) {\n            if (!has(column,\'sort\')) {\n                return false;\n            } else {\n                return column.sort;\n            }\n        },\n        // row method starts here\n        getValueFromRow(row, name) {\n            return get(row, name);\n        },\n        getCellSlotName(column) {\n            if (has(column,"slot_name")) {\n                return column.slot_name;\n            }\n            return column.name.replace(/\\./g,\'_\');\n        },\n        // row method ends here\n        resetSort() {\n            this.query.sort = [];\n            this.filter(!this.preservePageOnDataChange);\n        },\n\n        updateGlobalSearchHandler: function(value) {\n            this.query.global_search = value;\n        },\n\n        clearGlobalSearch() {\n            this.query.global_search = "";\n            this.$refs.global_search.value = "";\n        },\n\n        resetQuery() {\n\n            this.query = {\n                sort: [],\n                filters: [],\n                global_search: ""\n            }\n\n            this.global_search.visibility && (this.$refs.global_search.value = "");\n\n            EventBus.$emit(\'reset-query\');\n\n        },\n\n        emitQueryParams(page = null) {\n            if (this.server_mode && this.canEmitQueries) {\n                let queryParams = cloneDeep(this.query);\n                let sort = map(queryParams.sort, o => omit(o, \'vbt_col_id\'));\n                let filters = map(queryParams.filters, o => omit(o, \'config\'));\n                let global_search = queryParams.global_search;\n                let per_page = clone(this.per_page);\n\n                if (page == null) {\n                    if (this.preservePageOnDataChange) {\n                        page = this.page;\n                    } else {\n                        this.page = 1;\n                        page = 1;\n                    }\n                }\n\n                let payload = {\n                    sort : sort,\n                    filters : filters,\n                    global_search : global_search,\n                    per_page : per_page,\n                    page: page\n                }\n\n                this.$emit(\'on-change-query\',payload);\n            }\n        },\n        columnClasses(column) {\n            let classes = "";\n\n            let default_text_alignment = "text-center";\n\n            //decide text alignment class - starts here\n            let alignments = ["text-justify","text-right","text-left","text-center"];\n            if (has(column, "column_text_alignment") && includes(alignments, column.column_text_alignment)) {\n                classes = classes + " " + column.column_text_alignment;\n            } else {\n                classes = classes + " " + default_text_alignment;\n            }\n            //decide text alignment class - ends here\n\n            // adding user defined classes to rows - starts here\n            if (has(column, "column_classes")) {\n                classes = classes + " " + column.column_classes;\n            }\n            // adding user defined classes to rows - ends here\n\n            // adding classes for sortable column - starts here\n            if (this.isSortableColumn(column)) {\n                classes = classes + " vbt-sort-cursor";\n            }\n            // adding classes for sortable column - ends here\n\n            return classes;\n        },\n\n        handleShiftKey() {\n            ["keyup","keydown"].forEach((event) => {\n                window.addEventListener(event, (e) => {\n                    document.onselectstart = function() {\n                        return !(e.key == "Shift" && e.shiftKey == true);\n                    }\n                });\n            });\n        },\n        emitActionEvent(action) {\n            let payload = {\n                event_payload : cloneDeep(action.event_payload)\n            }\n\n            if (this.isSelectable) {\n                payload.selectedItems = cloneDeep(this.selected_items);\n            }\n\n            this.$emit(action.event_name,payload);\n        },\n        canShowColumn(column) {\n            return (column.visibility == undefined || column.visibility) ? true : false;\n        }\n    },\n    computed: {\n        rowCount() {\n            if (!this.server_mode) {\n                return this.temp_filtered_results.length;\n            } else {\n                return this.totalRows;\n            }\n        },\n        selectedItemsCount() {\n            return this.selected_items.length;\n        },\n        filteredResultsCount() {\n            return this.temp_filtered_results.length;\n        },\n        uniqueId() {\n            let unique_id = "";\n\n            if (!this.hasUniqueId) {\n                unique_id = "vbt_id";\n                return unique_id;\n            }\n            this.vbt_columns.some((column, key) => {\n                if (has(column, \'uniqueId\') && column.uniqueId === true) {\n                    unique_id = column.name;\n                    return true;\n                }\n            });\n\n            return unique_id;\n        },\n        hasUniqueId() {\n            let has_unique_id = false;\n\n            this.vbt_columns.some((column, key) => {\n                if (has(column, \'uniqueId\') && column.uniqueId === true) {\n                    has_unique_id = true;\n                    return true;\n                }\n            });\n\n            return has_unique_id;\n        },\n\n        // pagination info computed properties - start\n\n        currentPageRowsLength() {\n            return this.vbt_rows.length;\n        },\n\n        filteredRowsLength() {\n            return this.rowCount;\n        },\n\n        originalRowsLength() {\n            return (this.server_mode)? this.rowCount : this.rows.length;\n        },\n\n        // pagination info computed properties - end\n        rowHighlightColor() {\n            return (this.highlight_row_hover) ? this.highlight_row_hover_color : "";\n        },\n\n        headerColSpan() {\n            let count = (this.checkbox_rows) ? 1 : 0;\n\n            count += this.vbt_columns.filter(column => this.canShowColumn(column)).length;\n\n            return count;\n        },\n\n        showToolsRow() {\n            return (this.global_search.visibility == true || this.show_refresh_button == true || this.show_reset_button == true || this.actions.length > 0);\n        },\n\n        showFilterRow() {\n            let show_row = false;\n\n            this.columns.some((column,key) => {\n                if (has(column, "filter")) {\n                    show_row = true;\n                    return true;\n                }\n            })\n            return show_row;\n        },\n\n        showPaginationRow() {\n            let show_pagination_row = false;\n\n            if (this.card_mode == false && (this.pagination == true || this.pagination_info == true || this.selected_rows_info == true)) {\n                show_pagination_row = true;\n            }\n\n            return show_pagination_row;\n        },\n\n        currentPageSelectionCount() {\n            let result = [];\n            if (this.server_mode && !this.hasUniqueId) {\n                result = intersectionWith(this.vbt_rows, this.selected_items, isEqual);\n            } else {\n                result = intersectionBy(this.vbt_rows, this.selected_items, this.uniqueId);\n            }\n            return result.length;\n        },\n        tableClasses() {\n            let classes = "";\n            if (typeof this.classes.table == "string") {\n                return this.classes.table;\n            } else if (typeof this.classes.table == "object") {\n                Object.entries(this.classes.table).forEach(([key, value]) => {\n                    if (typeof value == "boolean" && value) {\n                        classes += key;\n                    } else if (typeof value == "function") {\n                        let truth = value(this.rows);\n                        if (typeof truth == "boolean" && truth) {\n                            classes += " ";\n                            classes += key;\n                        }\n                    }\n                });\n            }\n            return classes;\n        },\n        tableWrapperClasses() {\n            let classes = "";\n            let defaultClasses = "table-responsive";\n\n            if (!this.classes.tableWrapper && this.classes.tableWrapper != "") {\n                return defaultClasses;\n            }\n\n            return (typeof this.classes.tableWrapper == "string") ? this.classes.tableWrapper : defaultClasses;\n        },\n\n        isSelectable() {\n            return (this.checkbox_rows || this.rows_selectable);\n        },\n\n        updateGlobalSearch() {\n            return debounce(this.updateGlobalSearchHandler, this.global_search.searchDebounceRate);\n        }\n    },\n    watch: {\n        "query.filters": {\n            handler: function (after, before) {\n                if (!this.server_mode) {\n                    this.filter(!this.preservePageOnDataChange);\n                }\n            },\n            deep: true\n        },\n        "query.sort": {\n            handler: function (after, before) {\n                if (!this.server_mode) {\n                    this.sort();\n                }\n            },\n            deep: true\n        },\n        "query.global_search": {\n            handler: function (newVal, oldVal) {\n                if (!this.server_mode) {\n                    this.filter(!this.preservePageOnDataChange);\n                }\n            }\n        },\n        "query": {\n            handler: function (newVal, oldVal) {\n                if (this.server_mode) {\n                    this.emitQueryParams();\n                }\n            },\n            deep: true\n        },\n        per_page: {\n            handler: function (newVal, oldVal) {\n                if (!this.server_mode) {\n                    let doPaginateFilter = (this.page == 1);\n                    if (!this.preservePageOnDataChange) this.page = 1;\n                    if (doPaginateFilter) {\n                        this.paginateFilter();\n                    }\n                } else {\n                    this.emitQueryParams();\n                }\n            }\n        },\n        pagination: {\n            handler: function (newVal, oldVal) {\n                if (!this.server_mode) {\n                    this.paginateFilter();\n                } else {\n                    this.emitQueryParams();\n                }\n            }\n        },\n        rows: {\n            handler: function (newVal, oldVal) {\n\n                this.vbt_rows = cloneDeep(this.rows);\n\n                if (!this.server_mode) {\n                    // check if user mentioned unique id for a column, if not set unique id for all items\n                    let self = this;\n                    this.original_rows = map(this.vbt_rows, function (element, index) {\n                        let extra = {};\n                        if (!self.hasUniqueId) {\n                            extra.vbt_id = index + 1;\n                        }\n                        return extend({}, element, extra);\n                    });\n                    this.filter(!this.preservePageOnDataChange,!this.isFirstTime);\n                } else {\n                    if (this.preservePageOnDataChange) {\n                        let predictedTotalPage = Math.ceil(this.rowCount/this.per_page);\n                        if (predictedTotalPage != 0) {\n                            this.page = (this.page <= predictedTotalPage) ? this.page : predictedTotalPage;\n                        } else {\n                            this.page = 1;\n                        }\n                    }\n                }\n\n                this.isFirstTime = false;\n            },\n            deep: true\n        },\n        customFilters: {\n            handler: function (newVal, oldVal) {\n\n                if (!this.server_mode) {\n                    newVal.forEach(customFilter => {\n                        if (customFilter.name) {\n                            let index = this.query.filters.findIndex( filter => filter.name === customFilter.name );\n                            if (index == -1) {\n                                this.query.filters.push(customFilter);\n                            } else {\n                                this.query.filters[index].text = customFilter.text;\n                            }\n                        }\n                    });\n                }\n\n            },\n            deep: true\n        },\n        columns: {\n            handler: function (newVal, oldVal) {\n\n                this.vbt_columns = cloneDeep(this.columns);\n\n                this.vbt_columns = map(this.vbt_columns, function (element, index) {\n                    let extra = {};\n                    extra.vbt_col_id = index + 1;\n                    return extend({}, element, extra);\n                });\n\n                this.initFilterQueries();\n            },\n            deep: true\n        },\n        config: {\n            handler: function (newVal, oldVal) {\n                this.initConfig();\n            },\n            deep: true\n        },\n\n        vbt_rows: {\n            handler: function (newVal, oldVal) {\n                // resetting the shift mode\n                this.lastSelectedItemIndex = null;\n\n                if (this.selected_items.length == 0) {\n                    // EventBus.$emit(\'unselect-select-all-items-checkbox\');\n                    this.allRowsSelected = false;\n                    return;\n                }\n\n                let difference = [];\n\n                if (this.server_mode && !this.hasUniqueId) {\n                    difference = differenceWith(newVal, this.selected_items, isEqual);\n                } else {\n                    difference = differenceBy(newVal, this.selected_items, this.uniqueId);\n                }\n\n                if (difference.length == 0) {\n                    // EventBus.$emit(\'select-select-all-items-checkbox\');\n                    this.allRowsSelected = true;\n                } else {\n                    this.allRowsSelected = false;\n                    // EventBus.$emit(\'unselect-select-all-items-checkbox\');\n                }\n\n            },\n            deep: true\n        },\n\n        page(newVal, oldVal) {\n            if (!this.server_mode) {\n                this.paginateFilter();\n            } else {\n                this.emitQueryParams(newVal);\n            }\n        },\n        \'config.multi_column_sort\': {\n            handler : function(newVal,oldVal) {\n                this.resetSort();\n            }\n        }\n    }\n};\n<\/script>\n\n<style scoped>\n    .vbt-table-wrapper {\n        position: relative;\n    }\n\n    /*\n    Loader styles copied from here: https://loading.io/css/\n    */\n\n    .lds-ripple {\n        display: inline-block;\n        position: relative;\n        width: 64px;\n        height: 64px;\n    }\n    .lds-ripple div {\n        position: absolute;\n        border: 4px solid #000000;\n        opacity: 1;\n        border-radius: 50%;\n        animation: lds-ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;\n    }\n    .lds-ripple div:nth-child(2) {\n        animation-delay: -0.5s;\n    }\n    @keyframes lds-ripple {\n        0% {\n            top: 28px;\n            left: 28px;\n            width: 0;\n            height: 0;\n            opacity: 1;\n        }\n        100% {\n            top: -1px;\n            left: -1px;\n            width: 58px;\n            height: 58px;\n            opacity: 0;\n        }\n    }\n\n    .vbt-table-overlay {\n        display: flex;\n        flex-direction: column;\n        justify-content: center;\n        align-items: center;\n        width: 100%;\n        height: 100%;\n        background: #ffffff;\n        position: absolute;\n        opacity: 0.7;\n        z-index: 7777;\n    }\n\n    .vbt-table-loader-wrapper {\n        height: 100%;\n        width: 100%;\n        justify-content: center;\n    }\n\n    .vbt-table-loader-wrapper .progress{\n        margin-left: 40%;\n        margin-right: 40%;\n    }\n\n    .vbt-select-all-checkbox {\n        margin-bottom: 20px;\n    }\n\n    .vbt-sort-cursor {\n        cursor: pointer;\n    }\n    .custom-control-label {\n        vertical-align: top;\n    }\n    .vbt-column-header {\n        -webkit-user-select: none;  /* Chrome all / Safari all */\n        -moz-user-select: none;     /* Firefox all */\n        -ms-user-select: none;      /* IE 10+ */\n        user-select: none;          /* Likely future */\n    }\n    .vbt-global-search-clear {\n        cursor: pointer;\n    }\n    input[type="search"] {\n    -webkit-appearance: searchfield;\n    }\n\n    input[type="search"]::-webkit-search-cancel-button {\n    -webkit-appearance: searchfield-cancel-button;\n    }\n\n    /* Bootstrap 4 text input with clear icon on the right */\n\n    .has-clear-right {\n        position: relative;\n    }\n\n    .has-clear-right .form-control {\n        padding-right: 2.375rem;\n    }\n\n    .has-clear-right .form-control-feedback {\n        position: absolute;\n        top: 0;\n        right: 0;\n        z-index: 2;\n        display: block;\n        width: 2.375rem;\n        height: 2.375rem;\n        line-height: 2.375rem;\n        text-align: center;\n        font-weight: normal;\n    }\n\n    .has-clear-right .form-control-feedback:hover {\n        color: red;\n    }\n</style>\n\n\n// workflow - server\n// get data(payload)\n// clone to origin_rows\n// do filter\n// do global search\n// do sort\n// do paginate\n']},media:void 0})},__vue_scope_id__$9="data-v-46173776",__vue_module_identifier__$9=void 0,__vue_is_functional_template__$9=!1;function __vue_normalize__$9(e,t,n,r,i,a,s,o){var l,c=("function"==typeof n?n.options:n)||{};if(c.__file="/home/ruby/repos/vue-bootstrap4-table/src/components/VueBootstrap4Table.vue",c.render||(c.render=e.render,c.staticRenderFns=e.staticRenderFns,c._compiled=!0,i&&(c.functional=!0)),c._scopeId=r,t&&(l=function(e){t.call(this,s(e))}),void 0!==l)if(c.functional){var u=c.render;c.render=function(e,t){return l.call(t),u(e,t)}}else{var _=c.beforeCreate;c.beforeCreate=_?[].concat(_,l):[l]}return c}function __vue_create_injector__$5(){var e=document.head||document.getElementsByTagName("head")[0],t=__vue_create_injector__$5.styles||(__vue_create_injector__$5.styles={}),n="undefined"!=typeof navigator&&/msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());return function(r,i){if(!document.querySelector('style[data-vue-ssr-id~="'+r+'"]')){var a=n?i.media||"default":r,s=t[a]||(t[a]={ids:[],parts:[],element:void 0});if(!s.ids.includes(r)){var o=i.source,l=s.ids.length;if(s.ids.push(r),n&&(s.element=s.element||document.querySelector("style[data-group="+a+"]")),!s.element){var c=s.element=document.createElement("style");c.type="text/css",i.media&&c.setAttribute("media",i.media),n&&(c.setAttribute("data-group",a),c.setAttribute("data-next-index","0")),e.appendChild(c)}if(n&&(l=parseInt(s.element.getAttribute("data-next-index")),s.element.setAttribute("data-next-index",l+1)),s.element.styleSheet)s.parts.push(o),s.element.styleSheet.cssText=s.parts.filter(Boolean).join("\n");else{var u=document.createTextNode(o),_=s.element.childNodes;_[l]&&s.element.removeChild(_[l]),_.length?s.element.insertBefore(u,_[l]):s.element.appendChild(u)}}}}}var component=__vue_normalize__$9({render:__vue_render__$9,staticRenderFns:__vue_staticRenderFns__$9},__vue_inject_styles__$9,__vue_script__$9,__vue_scope_id__$9,__vue_is_functional_template__$9,__vue_module_identifier__$9,__vue_create_injector__$5,void 0);function install(e){install.installed||(install.installed=!0,e.component("VueBootstrap4Table",component))}var plugin={install:install},GlobalVue=null;"undefined"!=typeof window?GlobalVue=window.Vue:"undefined"!=typeof global&&(GlobalVue=global.Vue),GlobalVue&&GlobalVue.use(plugin);/* harmony default export */ __webpack_exports__["default"] = (component);
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../webpack/buildin/global.js */ "./node_modules/webpack/buildin/global.js")))
 
 /***/ }),
 
@@ -38307,6 +47438,1174 @@ function normalizeComponent(
   }
 }
 
+
+/***/ }),
+
+/***/ "./node_modules/vue-notification/dist/index.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/vue-notification/dist/index.js ***!
+  \*****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(true)
+		module.exports = factory(__webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.common.js"));
+	else {}
+})(this, function(__WEBPACK_EXTERNAL_MODULE_20__) {
+return /******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId]) {
+/******/ 			return installedModules[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			i: moduleId,
+/******/ 			l: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.l = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// identity function for calling harmony imports with the correct context
+/******/ 	__webpack_require__.i = function(value) { return value; };
+/******/
+/******/ 	// define getter function for harmony exports
+/******/ 	__webpack_require__.d = function(exports, name, getter) {
+/******/ 		if(!__webpack_require__.o(exports, name)) {
+/******/ 			Object.defineProperty(exports, name, {
+/******/ 				configurable: false,
+/******/ 				enumerable: true,
+/******/ 				get: getter
+/******/ 			});
+/******/ 		}
+/******/ 	};
+/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = function(module) {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			function getDefault() { return module['default']; } :
+/******/ 			function getModuleExports() { return module; };
+/******/ 		__webpack_require__.d(getter, 'a', getter);
+/******/ 		return getter;
+/******/ 	};
+/******/
+/******/ 	// Object.prototype.hasOwnProperty.call
+/******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "/dist/";
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports) {
+
+// this module is a runtime utility for cleaner component module output and will
+// be included in the final webpack user bundle
+
+module.exports = function normalizeComponent (
+  rawScriptExports,
+  compiledTemplate,
+  scopeId,
+  cssModules
+) {
+  var esModule
+  var scriptExports = rawScriptExports = rawScriptExports || {}
+
+  // ES6 modules interop
+  var type = typeof rawScriptExports.default
+  if (type === 'object' || type === 'function') {
+    esModule = rawScriptExports
+    scriptExports = rawScriptExports.default
+  }
+
+  // Vue.extend constructor export interop
+  var options = typeof scriptExports === 'function'
+    ? scriptExports.options
+    : scriptExports
+
+  // render functions
+  if (compiledTemplate) {
+    options.render = compiledTemplate.render
+    options.staticRenderFns = compiledTemplate.staticRenderFns
+  }
+
+  // scopedId
+  if (scopeId) {
+    options._scopeId = scopeId
+  }
+
+  // inject cssModules
+  if (cssModules) {
+    var computed = Object.create(options.computed || null)
+    Object.keys(cssModules).forEach(function (key) {
+      var module = cssModules[key]
+      computed[key] = function () { return module }
+    })
+    options.computed = computed
+  }
+
+  return {
+    esModule: esModule,
+    exports: scriptExports,
+    options: options
+  }
+}
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return events; });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue__ = __webpack_require__(20);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_vue___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_vue__);
+
+
+var events = new __WEBPACK_IMPORTED_MODULE_0_vue___default.a({ name: 'vue-notification' });
+
+/***/ }),
+/* 2 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__Notifications_vue__ = __webpack_require__(3);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__Notifications_vue___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0__Notifications_vue__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__events__ = __webpack_require__(1);
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+
+
+
+var Notify = {
+  install: function install(Vue) {
+    var args = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+    if (this.installed) {
+      return;
+    }
+
+    this.installed = true;
+    this.params = args;
+
+    Vue.component(args.componentName || 'notifications', __WEBPACK_IMPORTED_MODULE_0__Notifications_vue___default.a);
+
+    var notify = function notify(params) {
+      if (typeof params === 'string') {
+        params = { title: '', text: params };
+      }
+
+      if ((typeof params === 'undefined' ? 'undefined' : _typeof(params)) === 'object') {
+        __WEBPACK_IMPORTED_MODULE_1__events__["a" /* events */].$emit('add', params);
+      }
+    };
+
+    notify.close = function (id) {
+      __WEBPACK_IMPORTED_MODULE_1__events__["a" /* events */].$emit('close', id);
+    };
+
+    var name = args.name || 'notify';
+
+    Vue.prototype['$' + name] = notify;
+    Vue[name] = notify;
+  }
+};
+
+/* harmony default export */ __webpack_exports__["default"] = (Notify);
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+/* styles */
+__webpack_require__(17)
+
+var Component = __webpack_require__(0)(
+  /* script */
+  __webpack_require__(5),
+  /* template */
+  __webpack_require__(15),
+  /* scopeId */
+  null,
+  /* cssModules */
+  null
+)
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  name: 'CssGroup',
+  props: ['name']
+});
+
+/***/ }),
+/* 5 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__index__ = __webpack_require__(2);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__events__ = __webpack_require__(1);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__util__ = __webpack_require__(9);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__defaults__ = __webpack_require__(7);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__VelocityGroup_vue__ = __webpack_require__(13);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__VelocityGroup_vue___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_4__VelocityGroup_vue__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__CssGroup_vue__ = __webpack_require__(12);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__CssGroup_vue___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_5__CssGroup_vue__);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__parser__ = __webpack_require__(8);
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+
+
+
+
+
+
+
+
+var STATE = {
+  IDLE: 0,
+  DESTROYED: 2
+};
+
+var Component = {
+  name: 'Notifications',
+  components: {
+    VelocityGroup: __WEBPACK_IMPORTED_MODULE_4__VelocityGroup_vue___default.a,
+    CssGroup: __WEBPACK_IMPORTED_MODULE_5__CssGroup_vue___default.a
+  },
+  props: {
+    group: {
+      type: String,
+      default: ''
+    },
+
+    width: {
+      type: [Number, String],
+      default: 300
+    },
+
+    reverse: {
+      type: Boolean,
+      default: false
+    },
+
+    position: {
+      type: [String, Array],
+      default: function _default() {
+        return __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* default */].position;
+      }
+    },
+
+    classes: {
+      type: String,
+      default: 'vue-notification'
+    },
+
+    animationType: {
+      type: String,
+      default: 'css',
+      validator: function validator(value) {
+        return value === 'css' || value === 'velocity';
+      }
+    },
+
+    animation: {
+      type: Object,
+      default: function _default() {
+        return __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* default */].velocityAnimation;
+      }
+    },
+
+    animationName: {
+      type: String,
+      default: __WEBPACK_IMPORTED_MODULE_3__defaults__["a" /* default */].cssAnimation
+    },
+
+    speed: {
+      type: Number,
+      default: 300
+    },
+
+    cooldown: {
+      type: Number,
+      default: 0
+    },
+
+    duration: {
+      type: Number,
+      default: 3000
+    },
+
+    delay: {
+      type: Number,
+      default: 0
+    },
+
+    max: {
+      type: Number,
+      default: Infinity
+    },
+
+    ignoreDuplicates: {
+      type: Boolean,
+      default: false
+    },
+
+    closeOnClick: {
+      type: Boolean,
+      default: true
+    }
+  },
+  data: function data() {
+    return {
+      list: [],
+      velocity: __WEBPACK_IMPORTED_MODULE_0__index__["default"].params.velocity
+    };
+  },
+  mounted: function mounted() {
+    __WEBPACK_IMPORTED_MODULE_1__events__["a" /* events */].$on('add', this.addItem);
+    __WEBPACK_IMPORTED_MODULE_1__events__["a" /* events */].$on('close', this.closeItem);
+  },
+
+  computed: {
+    actualWidth: function actualWidth() {
+      return __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_6__parser__["a" /* default */])(this.width);
+    },
+    isVA: function isVA() {
+      return this.animationType === 'velocity';
+    },
+    componentName: function componentName() {
+      return this.isVA ? 'VelocityGroup' : 'CssGroup';
+    },
+    styles: function styles() {
+      var _listToDirection = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__util__["a" /* listToDirection */])(this.position),
+          x = _listToDirection.x,
+          y = _listToDirection.y;
+
+      var width = this.actualWidth.value;
+      var suffix = this.actualWidth.type;
+
+      var styles = _defineProperty({
+        width: width + suffix
+      }, y, '0px');
+
+      if (x === 'center') {
+        styles['left'] = 'calc(50% - ' + width / 2 + suffix + ')';
+      } else {
+        styles[x] = '0px';
+      }
+
+      return styles;
+    },
+    active: function active() {
+      return this.list.filter(function (v) {
+        return v.state !== STATE.DESTROYED;
+      });
+    },
+    botToTop: function botToTop() {
+      return this.styles.hasOwnProperty('bottom');
+    }
+  },
+  methods: {
+    destroyIfNecessary: function destroyIfNecessary(item) {
+      if (this.closeOnClick) {
+        this.destroy(item);
+      }
+    },
+    addItem: function addItem(event) {
+      var _this = this;
+
+      event.group = event.group || '';
+
+      if (this.group !== event.group) {
+        return;
+      }
+
+      if (event.clean || event.clear) {
+        this.destroyAll();
+        return;
+      }
+
+      var duration = typeof event.duration === 'number' ? event.duration : this.duration;
+
+      var speed = typeof event.speed === 'number' ? event.speed : this.speed;
+
+      var ignoreDuplicates = typeof event.ignoreDuplicates === 'boolean' ? event.ignoreDuplicates : this.ignoreDuplicates;
+
+      var title = event.title,
+          text = event.text,
+          type = event.type,
+          data = event.data,
+          id = event.id;
+
+
+      var item = {
+        id: id || __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_2__util__["b" /* Id */])(),
+        title: title,
+        text: text,
+        type: type,
+        state: STATE.IDLE,
+        speed: speed,
+        length: duration + 2 * speed,
+        data: data
+      };
+
+      if (duration >= 0) {
+        item.timer = setTimeout(function () {
+          _this.destroy(item);
+        }, item.length);
+      }
+
+      var direction = this.reverse ? !this.botToTop : this.botToTop;
+
+      var indexToDestroy = -1;
+
+      var isDuplicate = this.active.some(function (item) {
+        return item.title === event.title && item.text === event.text;
+      });
+
+      var canAdd = ignoreDuplicates ? !isDuplicate : true;
+
+      if (!canAdd) return;
+
+      if (direction) {
+        this.list.push(item);
+
+        if (this.active.length > this.max) {
+          indexToDestroy = 0;
+        }
+      } else {
+        this.list.unshift(item);
+
+        if (this.active.length > this.max) {
+          indexToDestroy = this.active.length - 1;
+        }
+      }
+
+      if (indexToDestroy !== -1) {
+        this.destroy(this.active[indexToDestroy]);
+      }
+    },
+    closeItem: function closeItem(id) {
+      this.destroyById(id);
+    },
+    notifyClass: function notifyClass(item) {
+      return ['vue-notification-template', this.classes, item.type];
+    },
+    notifyWrapperStyle: function notifyWrapperStyle(item) {
+      return this.isVA ? null : { transition: 'all ' + item.speed + 'ms' };
+    },
+    destroy: function destroy(item) {
+      clearTimeout(item.timer);
+      item.state = STATE.DESTROYED;
+
+      if (!this.isVA) {
+        this.clean();
+      }
+    },
+    destroyById: function destroyById(id) {
+      var item = this.list.find(function (v) {
+        return v.id === id;
+      });
+
+      if (item) {
+        this.destroy(item);
+      }
+    },
+    destroyAll: function destroyAll() {
+      this.active.forEach(this.destroy);
+    },
+    getAnimation: function getAnimation(index, el) {
+      var animation = this.animation[index];
+
+      return typeof animation === 'function' ? animation.call(this, el) : animation;
+    },
+    enter: function enter(_ref) {
+      var el = _ref.el,
+          complete = _ref.complete;
+
+      var animation = this.getAnimation('enter', el);
+
+      this.velocity(el, animation, {
+        duration: this.speed,
+        complete: complete
+      });
+    },
+    leave: function leave(_ref2) {
+      var el = _ref2.el,
+          complete = _ref2.complete;
+
+      var animation = this.getAnimation('leave', el);
+
+      this.velocity(el, animation, {
+        duration: this.speed,
+        complete: complete
+      });
+    },
+    clean: function clean() {
+      this.list = this.list.filter(function (v) {
+        return v.state !== STATE.DESTROYED;
+      });
+    }
+  }
+};
+
+/* harmony default export */ __webpack_exports__["default"] = (Component);
+
+/***/ }),
+/* 6 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
+
+
+/* harmony default export */ __webpack_exports__["default"] = ({
+  name: 'VelocityGroup',
+  methods: {
+    enter: function enter(el, complete) {
+      this.$emit('enter', { el: el, complete: complete });
+    },
+    leave: function leave(el, complete) {
+      this.$emit('leave', { el: el, complete: complete });
+    },
+    afterLeave: function afterLeave() {
+      this.$emit('afterLeave');
+    }
+  }
+});
+
+/***/ }),
+/* 7 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony default export */ __webpack_exports__["a"] = ({
+  position: ['top', 'right'],
+  cssAnimation: 'vn-fade',
+  velocityAnimation: {
+    enter: function enter(el) {
+      var height = el.clientHeight;
+
+      return {
+        height: [height, 0],
+        opacity: [1, 0]
+      };
+    },
+    leave: {
+      height: 0,
+      opacity: [0, 1]
+    }
+  }
+});
+
+/***/ }),
+/* 8 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* unused harmony export parse */
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+var floatRegexp = '[-+]?[0-9]*.?[0-9]+';
+
+var types = [{
+  name: 'px',
+  regexp: new RegExp('^' + floatRegexp + 'px$')
+}, {
+  name: '%',
+  regexp: new RegExp('^' + floatRegexp + '%$')
+}, {
+  name: 'px',
+  regexp: new RegExp('^' + floatRegexp + '$')
+}];
+
+var getType = function getType(value) {
+  if (value === 'auto') {
+    return {
+      type: value,
+      value: 0
+    };
+  }
+
+  for (var i = 0; i < types.length; i++) {
+    var type = types[i];
+    if (type.regexp.test(value)) {
+      return {
+        type: type.name,
+        value: parseFloat(value)
+      };
+    }
+  }
+
+  return {
+    type: '',
+    value: value
+  };
+};
+
+var parse = function parse(value) {
+  switch (typeof value === 'undefined' ? 'undefined' : _typeof(value)) {
+    case 'number':
+      return { type: 'px', value: value };
+    case 'string':
+      return getType(value);
+    default:
+      return { type: '', value: value };
+  }
+};
+
+/* harmony default export */ __webpack_exports__["a"] = (parse);
+
+/***/ }),
+/* 9 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return Id; });
+/* unused harmony export split */
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return listToDirection; });
+var directions = {
+  x: ['left', 'center', 'right'],
+  y: ['top', 'bottom']
+};
+
+var Id = function (i) {
+  return function () {
+    return i++;
+  };
+}(0);
+
+var split = function split(value) {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value.split(/\s+/gi).filter(function (v) {
+    return v;
+  });
+};
+
+var listToDirection = function listToDirection(value) {
+  if (typeof value === 'string') {
+    value = split(value);
+  }
+
+  var x = null;
+  var y = null;
+
+  value.forEach(function (v) {
+    if (directions.y.indexOf(v) !== -1) {
+      y = v;
+    }
+    if (directions.x.indexOf(v) !== -1) {
+      x = v;
+    }
+  });
+
+  return { x: x, y: y };
+};
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+exports = module.exports = __webpack_require__(11)();
+// imports
+
+
+// module
+exports.push([module.i, ".vue-notification-group{display:block;position:fixed;z-index:5000}.vue-notification-wrapper{display:block;overflow:hidden;width:100%;margin:0;padding:0}.notification-title{font-weight:600}.vue-notification-template{background:#fff}.vue-notification,.vue-notification-template{display:block;box-sizing:border-box;text-align:left}.vue-notification{font-size:12px;padding:10px;margin:0 5px 5px;color:#fff;background:#44a4fc;border-left:5px solid #187fe7}.vue-notification.warn{background:#ffb648;border-left-color:#f48a06}.vue-notification.error{background:#e54d42;border-left-color:#b82e24}.vue-notification.success{background:#68cd86;border-left-color:#42a85f}.vn-fade-enter-active,.vn-fade-leave-active,.vn-fade-move{transition:all .5s}.vn-fade-enter,.vn-fade-leave-to{opacity:0}", ""]);
+
+// exports
+
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports) {
+
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+// css base code, injected by the css-loader
+module.exports = function() {
+	var list = [];
+
+	// return the list of modules as css string
+	list.toString = function toString() {
+		var result = [];
+		for(var i = 0; i < this.length; i++) {
+			var item = this[i];
+			if(item[2]) {
+				result.push("@media " + item[2] + "{" + item[1] + "}");
+			} else {
+				result.push(item[1]);
+			}
+		}
+		return result.join("");
+	};
+
+	// import a list of modules into the list
+	list.i = function(modules, mediaQuery) {
+		if(typeof modules === "string")
+			modules = [[null, modules, ""]];
+		var alreadyImportedModules = {};
+		for(var i = 0; i < this.length; i++) {
+			var id = this[i][0];
+			if(typeof id === "number")
+				alreadyImportedModules[id] = true;
+		}
+		for(i = 0; i < modules.length; i++) {
+			var item = modules[i];
+			// skip already imported module
+			// this implementation is not 100% perfect for weird media query combinations
+			//  when a module is imported multiple times with different media queries.
+			//  I hope this will never occur (Hey this way we have smaller bundles)
+			if(typeof item[0] !== "number" || !alreadyImportedModules[item[0]]) {
+				if(mediaQuery && !item[2]) {
+					item[2] = mediaQuery;
+				} else if(mediaQuery) {
+					item[2] = "(" + item[2] + ") and (" + mediaQuery + ")";
+				}
+				list.push(item);
+			}
+		}
+	};
+	return list;
+};
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var Component = __webpack_require__(0)(
+  /* script */
+  __webpack_require__(4),
+  /* template */
+  __webpack_require__(16),
+  /* scopeId */
+  null,
+  /* cssModules */
+  null
+)
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var Component = __webpack_require__(0)(
+  /* script */
+  __webpack_require__(6),
+  /* template */
+  __webpack_require__(14),
+  /* scopeId */
+  null,
+  /* cssModules */
+  null
+)
+
+module.exports = Component.exports
+
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports) {
+
+module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;
+  return _c('transition-group', {
+    attrs: {
+      "css": false
+    },
+    on: {
+      "enter": _vm.enter,
+      "leave": _vm.leave,
+      "after-leave": _vm.afterLeave
+    }
+  }, [_vm._t("default")], 2)
+},staticRenderFns: []}
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports) {
+
+module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;
+  return _c('div', {
+    staticClass: "vue-notification-group",
+    style: (_vm.styles)
+  }, [_c(_vm.componentName, {
+    tag: "component",
+    attrs: {
+      "name": _vm.animationName
+    },
+    on: {
+      "enter": _vm.enter,
+      "leave": _vm.leave,
+      "after-leave": _vm.clean
+    }
+  }, _vm._l((_vm.active), function(item) {
+    return _c('div', {
+      key: item.id,
+      staticClass: "vue-notification-wrapper",
+      style: (_vm.notifyWrapperStyle(item)),
+      attrs: {
+        "data-id": item.id
+      }
+    }, [_vm._t("body", [_c('div', {
+      class: _vm.notifyClass(item),
+      on: {
+        "click": function($event) {
+          return _vm.destroyIfNecessary(item)
+        }
+      }
+    }, [(item.title) ? _c('div', {
+      staticClass: "notification-title",
+      domProps: {
+        "innerHTML": _vm._s(item.title)
+      }
+    }) : _vm._e(), _vm._v(" "), _c('div', {
+      staticClass: "notification-content",
+      domProps: {
+        "innerHTML": _vm._s(item.text)
+      }
+    })])], {
+      "item": item,
+      "close": function () { return _vm.destroy(item); }
+    })], 2)
+  }), 0)], 1)
+},staticRenderFns: []}
+
+/***/ }),
+/* 16 */
+/***/ (function(module, exports) {
+
+module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;
+  return _c('transition-group', {
+    attrs: {
+      "name": _vm.name
+    }
+  }, [_vm._t("default")], 2)
+},staticRenderFns: []}
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// style-loader: Adds some css to the DOM by adding a <style> tag
+
+// load the styles
+var content = __webpack_require__(10);
+if(typeof content === 'string') content = [[module.i, content, '']];
+if(content.locals) module.exports = content.locals;
+// add the styles to the DOM
+var update = __webpack_require__(18)("2901aeae", content, true);
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+/*
+  MIT License http://www.opensource.org/licenses/mit-license.php
+  Author Tobias Koppers @sokra
+  Modified by Evan You @yyx990803
+*/
+
+var hasDocument = typeof document !== 'undefined'
+
+if (typeof DEBUG !== 'undefined' && DEBUG) {
+  if (!hasDocument) {
+    throw new Error(
+    'vue-style-loader cannot be used in a non-browser environment. ' +
+    "Use { target: 'node' } in your Webpack config to indicate a server-rendering environment."
+  ) }
+}
+
+var listToStyles = __webpack_require__(19)
+
+/*
+type StyleObject = {
+  id: number;
+  parts: Array<StyleObjectPart>
+}
+
+type StyleObjectPart = {
+  css: string;
+  media: string;
+  sourceMap: ?string
+}
+*/
+
+var stylesInDom = {/*
+  [id: number]: {
+    id: number,
+    refs: number,
+    parts: Array<(obj?: StyleObjectPart) => void>
+  }
+*/}
+
+var head = hasDocument && (document.head || document.getElementsByTagName('head')[0])
+var singletonElement = null
+var singletonCounter = 0
+var isProduction = false
+var noop = function () {}
+
+// Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+// tags it will allow on a page
+var isOldIE = typeof navigator !== 'undefined' && /msie [6-9]\b/.test(navigator.userAgent.toLowerCase())
+
+module.exports = function (parentId, list, _isProduction) {
+  isProduction = _isProduction
+
+  var styles = listToStyles(parentId, list)
+  addStylesToDom(styles)
+
+  return function update (newList) {
+    var mayRemove = []
+    for (var i = 0; i < styles.length; i++) {
+      var item = styles[i]
+      var domStyle = stylesInDom[item.id]
+      domStyle.refs--
+      mayRemove.push(domStyle)
+    }
+    if (newList) {
+      styles = listToStyles(parentId, newList)
+      addStylesToDom(styles)
+    } else {
+      styles = []
+    }
+    for (var i = 0; i < mayRemove.length; i++) {
+      var domStyle = mayRemove[i]
+      if (domStyle.refs === 0) {
+        for (var j = 0; j < domStyle.parts.length; j++) {
+          domStyle.parts[j]()
+        }
+        delete stylesInDom[domStyle.id]
+      }
+    }
+  }
+}
+
+function addStylesToDom (styles /* Array<StyleObject> */) {
+  for (var i = 0; i < styles.length; i++) {
+    var item = styles[i]
+    var domStyle = stylesInDom[item.id]
+    if (domStyle) {
+      domStyle.refs++
+      for (var j = 0; j < domStyle.parts.length; j++) {
+        domStyle.parts[j](item.parts[j])
+      }
+      for (; j < item.parts.length; j++) {
+        domStyle.parts.push(addStyle(item.parts[j]))
+      }
+      if (domStyle.parts.length > item.parts.length) {
+        domStyle.parts.length = item.parts.length
+      }
+    } else {
+      var parts = []
+      for (var j = 0; j < item.parts.length; j++) {
+        parts.push(addStyle(item.parts[j]))
+      }
+      stylesInDom[item.id] = { id: item.id, refs: 1, parts: parts }
+    }
+  }
+}
+
+function createStyleElement () {
+  var styleElement = document.createElement('style')
+  styleElement.type = 'text/css'
+  head.appendChild(styleElement)
+  return styleElement
+}
+
+function addStyle (obj /* StyleObjectPart */) {
+  var update, remove
+  var styleElement = document.querySelector('style[data-vue-ssr-id~="' + obj.id + '"]')
+
+  if (styleElement) {
+    if (isProduction) {
+      // has SSR styles and in production mode.
+      // simply do nothing.
+      return noop
+    } else {
+      // has SSR styles but in dev mode.
+      // for some reason Chrome can't handle source map in server-rendered
+      // style tags - source maps in <style> only works if the style tag is
+      // created and inserted dynamically. So we remove the server rendered
+      // styles and inject new ones.
+      styleElement.parentNode.removeChild(styleElement)
+    }
+  }
+
+  if (isOldIE) {
+    // use singleton mode for IE9.
+    var styleIndex = singletonCounter++
+    styleElement = singletonElement || (singletonElement = createStyleElement())
+    update = applyToSingletonTag.bind(null, styleElement, styleIndex, false)
+    remove = applyToSingletonTag.bind(null, styleElement, styleIndex, true)
+  } else {
+    // use multi-style-tag mode in all other cases
+    styleElement = createStyleElement()
+    update = applyToTag.bind(null, styleElement)
+    remove = function () {
+      styleElement.parentNode.removeChild(styleElement)
+    }
+  }
+
+  update(obj)
+
+  return function updateStyle (newObj /* StyleObjectPart */) {
+    if (newObj) {
+      if (newObj.css === obj.css &&
+          newObj.media === obj.media &&
+          newObj.sourceMap === obj.sourceMap) {
+        return
+      }
+      update(obj = newObj)
+    } else {
+      remove()
+    }
+  }
+}
+
+var replaceText = (function () {
+  var textStore = []
+
+  return function (index, replacement) {
+    textStore[index] = replacement
+    return textStore.filter(Boolean).join('\n')
+  }
+})()
+
+function applyToSingletonTag (styleElement, index, remove, obj) {
+  var css = remove ? '' : obj.css
+
+  if (styleElement.styleSheet) {
+    styleElement.styleSheet.cssText = replaceText(index, css)
+  } else {
+    var cssNode = document.createTextNode(css)
+    var childNodes = styleElement.childNodes
+    if (childNodes[index]) styleElement.removeChild(childNodes[index])
+    if (childNodes.length) {
+      styleElement.insertBefore(cssNode, childNodes[index])
+    } else {
+      styleElement.appendChild(cssNode)
+    }
+  }
+}
+
+function applyToTag (styleElement, obj) {
+  var css = obj.css
+  var media = obj.media
+  var sourceMap = obj.sourceMap
+
+  if (media) {
+    styleElement.setAttribute('media', media)
+  }
+
+  if (sourceMap) {
+    // https://developer.chrome.com/devtools/docs/javascript-debugging
+    // this makes source maps inside style tags work properly in Chrome
+    css += '\n/*# sourceURL=' + sourceMap.sources[0] + ' */'
+    // http://stackoverflow.com/a/26603875
+    css += '\n/*# sourceMappingURL=data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + ' */'
+  }
+
+  if (styleElement.styleSheet) {
+    styleElement.styleSheet.cssText = css
+  } else {
+    while (styleElement.firstChild) {
+      styleElement.removeChild(styleElement.firstChild)
+    }
+    styleElement.appendChild(document.createTextNode(css))
+  }
+}
+
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports) {
+
+/**
+ * Translates the list format produced by css-loader into something
+ * easier to manipulate.
+ */
+module.exports = function listToStyles (parentId, list) {
+  var styles = []
+  var newStyles = {}
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i]
+    var id = item[0]
+    var css = item[1]
+    var media = item[2]
+    var sourceMap = item[3]
+    var part = {
+      id: parentId + ':' + i,
+      css: css,
+      media: media,
+      sourceMap: sourceMap
+    }
+    if (!newStyles[id]) {
+      styles.push(newStyles[id] = { id: id, parts: [part] })
+    } else {
+      newStyles[id].parts.push(part)
+    }
+  }
+  return styles
+}
+
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE_20__;
+
+/***/ })
+/******/ ]);
+});
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -52084,6 +62383,86 @@ module.exports = function(module) {
 
 /***/ }),
 
+/***/ "./node_modules/yeast/index.js":
+/*!*************************************!*\
+  !*** ./node_modules/yeast/index.js ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_'.split('')
+  , length = 64
+  , map = {}
+  , seed = 0
+  , i = 0
+  , prev;
+
+/**
+ * Return a string representing the specified number.
+ *
+ * @param {Number} num The number to convert.
+ * @returns {String} The string representation of the number.
+ * @api public
+ */
+function encode(num) {
+  var encoded = '';
+
+  do {
+    encoded = alphabet[num % length] + encoded;
+    num = Math.floor(num / length);
+  } while (num > 0);
+
+  return encoded;
+}
+
+/**
+ * Return the integer value specified by the given string.
+ *
+ * @param {String} str The string to convert.
+ * @returns {Number} The integer value represented by the string.
+ * @api public
+ */
+function decode(str) {
+  var decoded = 0;
+
+  for (i = 0; i < str.length; i++) {
+    decoded = decoded * length + map[str.charAt(i)];
+  }
+
+  return decoded;
+}
+
+/**
+ * Yeast: A tiny growing id generator.
+ *
+ * @returns {String} A unique id.
+ * @api public
+ */
+function yeast() {
+  var now = encode(+new Date());
+
+  if (now !== prev) return seed = 0, prev = now;
+  return now +'.'+ encode(seed++);
+}
+
+//
+// Map each character to its index.
+//
+for (; i < length; i++) map[alphabet[i]] = i;
+
+//
+// Expose the `yeast`, `encode` and `decode` functions.
+//
+yeast.encode = encode;
+yeast.decode = decode;
+module.exports = yeast;
+
+
+/***/ }),
+
 /***/ "./resources/js/app.js":
 /*!*****************************!*\
   !*** ./resources/js/app.js ***!
@@ -52097,6 +62476,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vue__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var vuelidate__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vuelidate */ "./node_modules/vuelidate/lib/index.js");
 /* harmony import */ var vuelidate__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(vuelidate__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var vue_notification__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vue-notification */ "./node_modules/vue-notification/dist/index.js");
+/* harmony import */ var vue_notification__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(vue_notification__WEBPACK_IMPORTED_MODULE_2__);
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
@@ -52115,10 +62496,13 @@ window.Vue = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.common.
 // const files = require.context('./', true, /\.vue$/i)
 // files.keys().map(key => Vue.component(key.split('/').pop().split('.')[0], files(key).default))
 
+
+
+
 vue__WEBPACK_IMPORTED_MODULE_0___default.a.component('enquete-component', __webpack_require__(/*! ./components/EnqueteComponent.vue */ "./resources/js/components/EnqueteComponent.vue")["default"]);
-
-
+vue__WEBPACK_IMPORTED_MODULE_0___default.a.component('listar-enquete-component', __webpack_require__(/*! ./components/ListarEnquetesComponent.vue */ "./resources/js/components/ListarEnquetesComponent.vue")["default"]);
 vue__WEBPACK_IMPORTED_MODULE_0___default.a.use(vuelidate__WEBPACK_IMPORTED_MODULE_1___default.a);
+vue__WEBPACK_IMPORTED_MODULE_0___default.a.use(vue_notification__WEBPACK_IMPORTED_MODULE_2___default.a);
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application
@@ -52253,6 +62637,75 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./resources/js/components/ListarEnquetesComponent.vue":
+/*!*************************************************************!*\
+  !*** ./resources/js/components/ListarEnquetesComponent.vue ***!
+  \*************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./ListarEnquetesComponent.vue?vue&type=template&id=7b388449& */ "./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449&");
+/* harmony import */ var _ListarEnquetesComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./ListarEnquetesComponent.vue?vue&type=script&lang=js& */ "./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport *//* harmony import */ var _node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../node_modules/vue-loader/lib/runtime/componentNormalizer.js */ "./node_modules/vue-loader/lib/runtime/componentNormalizer.js");
+
+
+
+
+
+/* normalize component */
+
+var component = Object(_node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__["default"])(
+  _ListarEnquetesComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__["default"],
+  _ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__["render"],
+  _ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"],
+  false,
+  null,
+  null,
+  null
+  
+)
+
+/* hot reload */
+if (false) { var api; }
+component.options.__file = "resources/js/components/ListarEnquetesComponent.vue"
+/* harmony default export */ __webpack_exports__["default"] = (component.exports);
+
+/***/ }),
+
+/***/ "./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js&":
+/*!**************************************************************************************!*\
+  !*** ./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js& ***!
+  \**************************************************************************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_ListarEnquetesComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib??ref--4-0!../../../node_modules/vue-loader/lib??vue-loader-options!./ListarEnquetesComponent.vue?vue&type=script&lang=js& */ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ListarEnquetesComponent.vue?vue&type=script&lang=js&");
+/* empty/unused harmony star reexport */ /* harmony default export */ __webpack_exports__["default"] = (_node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_index_js_vue_loader_options_ListarEnquetesComponent_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_0__["default"]); 
+
+/***/ }),
+
+/***/ "./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449&":
+/*!********************************************************************************************!*\
+  !*** ./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449& ***!
+  \********************************************************************************************/
+/*! exports provided: render, staticRenderFns */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_loaders_templateLoader_js_ref_6_node_modules_vue_loader_lib_index_js_vue_loader_options_ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib??ref--4-0!../../../node_modules/vue-loader/lib/loaders/templateLoader.js??ref--6!../../../node_modules/vue-loader/lib??vue-loader-options!./ListarEnquetesComponent.vue?vue&type=template&id=7b388449& */ "./node_modules/babel-loader/lib/index.js?!./node_modules/vue-loader/lib/loaders/templateLoader.js?!./node_modules/vue-loader/lib/index.js?!./resources/js/components/ListarEnquetesComponent.vue?vue&type=template&id=7b388449&");
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "render", function() { return _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_loaders_templateLoader_js_ref_6_node_modules_vue_loader_lib_index_js_vue_loader_options_ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__["render"]; });
+
+/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "staticRenderFns", function() { return _node_modules_babel_loader_lib_index_js_ref_4_0_node_modules_vue_loader_lib_loaders_templateLoader_js_ref_6_node_modules_vue_loader_lib_index_js_vue_loader_options_ListarEnquetesComponent_vue_vue_type_template_id_7b388449___WEBPACK_IMPORTED_MODULE_0__["staticRenderFns"]; });
+
+
+
+/***/ }),
+
 /***/ "./resources/sass/app.scss":
 /*!*********************************!*\
   !*** ./resources/sass/app.scss ***!
@@ -52274,6 +62727,17 @@ __webpack_require__.r(__webpack_exports__);
 __webpack_require__(/*! C:\wamp64\www\example-app\resources\js\app.js */"./resources/js/app.js");
 module.exports = __webpack_require__(/*! C:\wamp64\www\example-app\resources\sass\app.scss */"./resources/sass/app.scss");
 
+
+/***/ }),
+
+/***/ 1:
+/*!********************!*\
+  !*** ws (ignored) ***!
+  \********************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+/* (ignored) */
 
 /***/ })
 

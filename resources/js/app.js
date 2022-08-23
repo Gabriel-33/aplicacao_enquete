@@ -22,10 +22,13 @@ window.Vue = require('vue');
 import Vue from 'vue'
 import Vuelidate from 'vuelidate'
 import Notifications from 'vue-notification'
+import 'bootstrap/dist/css/bootstrap.css'
+import 'bootstrap-vue/dist/bootstrap-vue.css'
 Vue.component('enquete-component', require('./components/EnqueteComponent.vue').default);
 Vue.component('listar-enquete-component', require('./components/ListarEnquetesComponent.vue').default);
+Vue.component('votar-enquete-component', require('./components/votarEnqueteComponent.vue').default);
 Vue.use(Vuelidate)
-Vue.use(Notifications)
+Vue.use(Notifications)  
 /**
  * Next, we will create a fresh Vue application instance and attach it to
  * the page. Then, you may begin adding components to this application

@@ -6,12 +6,13 @@
     <title></title>
     <!-- CSS only -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/all.min.css">
 </head>
 <style>
     body {
       margin: 0;
       font-family: "Lato", sans-serif;
-      background-color: #D3D3D3;
+      background-color: #D3D3D3!important;
     }
 
     .sidebar {
@@ -34,11 +35,13 @@
     .sidebar a.active {
       background-color: #04AA6D;
       color: white;
+      text-decoration: none;
     }
 
     .sidebar a:hover:not(.active) {
       background-color: #555;
       color: white;
+      text-decoration: none;
     }
 
     div.content {
@@ -70,12 +73,12 @@
             <center><h5>SIGNO-WEB</h5></center>
             <a v-bind:class="{ active: opc == 'cadastrar_enquete'}" href="#home" @click.prevent v-on:click="chamar_opc('cadastrar_enquete')">Nova enquete</a>
             <a v-bind:class="{ active: opc == 'visualizar_enquetes'}" href="#home" @click.prevent v-on:click="chamar_opc('visualizar_enquetes')">Ver enquetes cadastradas</a>
-            <a href="#contact">Contact</a>
-            <a href="#about">About</a>
+            <a href="#contact" v-bind:class="{ active: opc == 'votar_enquete'}" href="#home" @click.prevent v-on:click="chamar_opc('votar_enquete')">Votar</a>
         </div>
         <div class="content">
             <enquete-component v-show="opc == 'cadastrar_enquete'" style="margin-top: 150px;"></enquete-component>
             <listar-enquete-component v-show="opc == 'visualizar_enquetes'" style="margin-top: 100px;"></listar-enquete-component>
+            <votar-enquete-component v-show="opc == 'votar_enquete'" style="margin-top: 100px;"></votar-enquete-component>
         </div>
     </div>
 </body>

@@ -20,4 +20,8 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', 'HomeController@index')->name('home');
+Route::get('/editar_enquete/{id_enquete}', 'adminController@editar_enquete')->name('editar_enquete');
 Route::post('/cadastrar_enquete', 'adminController@cadastrar_enquete')->name('cadastrar_enquete');
+Route::post('/listar_enquetes', 'adminController@listar_enquetes')->name('listar_enquetes');
+Route::post('/salvar_alteracoes_enquete', 'adminController@salvar_alteracoes_enquete')->name('salvar_alteracoes_enquete');
+Route::post('/excluirEnquete', 'adminController@excluirEnquete')->name('excluirEnquete');

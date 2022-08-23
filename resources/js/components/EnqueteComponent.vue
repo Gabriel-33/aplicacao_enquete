@@ -1,6 +1,6 @@
 <template>
-    <div class="card col-md-7 mx-auto">
-    <notifications group="foo" position="top center" width="500px" style="margin-top:15px"/>
+    <div class="card col-md-8 mx-auto">
+    <notifications group="foo" position="top center" width="800px" style="margin-top:15px"/>
       <div class="card-body">
         <div class="row">
             <center><h5>NOVA ENQUETE</h5></center>
@@ -183,7 +183,7 @@
                         'horario_inicial':this.horario_inicial,
                         'horario_final':this.horario_final, 
                         'campo':this.campo,
-                    }).then(response => {this.resposta = response.data;console.log(this.resposta);this.$emit('enquete_cadastrada')}).catch(error => {    
+                    }).then(response => {this.resposta = response.data;console.log(this.resposta);this.$emit('enquete_cadastrada');this.socket.emit('atualizar')}).catch(error => {    
                         console.log(error.message);
                     })
                 }else{

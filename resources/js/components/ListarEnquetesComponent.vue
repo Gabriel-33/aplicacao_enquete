@@ -259,6 +259,16 @@ export default {
                     sort: true,
                 },
                 {
+                    label: "Quantidade de votos",
+                    name: "quantidade_votos",
+                    sort: true,
+                    filter: {
+                        type: "simple",
+                        placeholder: "Quantidade de votos"
+                    },
+                    sort: true,
+                },
+                {
                     label: "Editar",
                     name: "editar",
                     sort: true,
@@ -373,11 +383,12 @@ export default {
             this.$bvModal.show('1');
         },
         listar_enquete(){
-            axios.post('listar_enquetes').then(resposta => {this.dados = resposta.data});
+            axios.post('listar_enquetes').then(resposta => {this.dados = resposta.data;console.log(this.dados)});
         },
         salvar_edicao(e){
             event.preventDefault();
             if(this.$v.$anyError == false){
+                console.log(this.campo)
                 axios.post('salvar_alteracoes_enquete',{
                     'fk_enquete':e.row.id_enquete,
                     'titulo_enquete':e.row.titulo_enquete,

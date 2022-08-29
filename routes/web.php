@@ -25,3 +25,4 @@ Route::post('/cadastrar_enquete', 'adminController@cadastrar_enquete')->name('ca
 Route::post('/listar_enquetes', 'adminController@listar_enquetes')->name('listar_enquetes');
 Route::post('/salvar_alteracoes_enquete', 'adminController@salvar_alteracoes_enquete')->name('salvar_alteracoes_enquete');
 Route::post('/excluirEnquete', 'adminController@excluirEnquete')->name('excluirEnquete');
+Route::post('/salvarRespostaEnquete', 'adminController@salvarRespostaEnquete')->name('salvarRespostaEnquete');

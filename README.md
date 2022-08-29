@@ -1,5 +1,6 @@
 # signo-app
 # signo-app
+Alguns arquivos não foram enviados diretamente para o git. Como por exemplo o "node_modules",sendo assim, rode/adicione os comandos/código abaixo para gerar os arquivos que são de infima importância para executar o sistema
 O sistema foi desenvolvido em laravel 9 e vue js 2, com o banco de dados mysql.
 rode "composer install","npm install" "copy .env.example .env" e "php artisan key:generate" na raiz do projeto. Depois, na mesma raiz do projeto, rode "node resources/js/server
 Alterar o arquivo env. para:

@@ -6,4 +6,5 @@ Tecnológias usadas:
 - Vue js.
 - Html & css.
 - Javascript.
+- Websockets.
 - Banco de dados relacional mysql.

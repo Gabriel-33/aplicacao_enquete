@@ -11,4 +11,5 @@ Tecnológias usadas:
 # Instalação
 -Rodar "Npm install"
 -php artisan key:generate
--Alterar os valores do banco de dados do .env
+-Importar o arquivo "signo.sql" para o banco de dados.
+-Configurar os valores do banco de dados do .env

@@ -9,7 +9,7 @@ Tecnológias usadas:
 - Websockets.
 - Banco de dados relacional mysql.
 # Instalação
--Rodar "Npm install"
--php artisan key:generate
+- Executar o comando "Npm install"
+- Executar o comando php artisan key:generate
 - Importar o arquivo "signo.sql" para o banco de dados.
 - Configurar os valores do banco de dados do .env

@@ -8,3 +8,7 @@ Tecnológias usadas:
 - Javascript.
 - Websockets.
 - Banco de dados relacional mysql.
+# Instalação
+-Rodar "Npm install"
+-php artisan key:generate
+-Alterar os valores do banco de dados do .env

@@ -1,5 +1,6 @@
 ### Aplicação de enquete
 A aplicação abaixo desenvolvida, é um sistema para criação e votação de enquete. Onde pode-se cadastrar 3 tipos de enquetes(pergunta com campo de texto, campo rádio e campo numérico).
+#
 ### Tecnológias usadas
 - Php.
 - Laravel.
@@ -8,6 +9,7 @@ A aplicação abaixo desenvolvida, é um sistema para criação e votação de e
 - Javascript.
 - Websockets.
 - Banco de dados relacional mysql.
+#
 ### Instalação
 - Executar o comando "Npm install"
 - Executar o comando "php artisan key:generate"
